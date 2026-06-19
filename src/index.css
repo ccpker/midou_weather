@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* 天气 APP 专属调色板 */
+:root {
+  --color-bg: #020617;
+  --color-surface: #0f172a;
+  --color-card: #1e293b;
+  --color-border: #334155;
+  --color-text: #f1f5f9;
+  --color-text-muted: #64748b;
+  --color-accent: #38bdf8;
+  --color-rain: #3b82f6;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-warn: #eab308;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 移动端安全区 */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
