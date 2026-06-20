@@ -30,6 +30,12 @@ interface Actions {
 
   /** 重算所有源的统计 */
   recomputeStats: () => void;
+
+  /** 切换源启用状态 */
+  toggleSource: (id: SourceId) => void;
+
+  /** 调节源权重 */
+  setSourceWeight: (id: SourceId, weight: number) => void;
 }
 
 function emptyStats(): SourceStats {
@@ -136,4 +142,20 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
     }
     set({ sourceStats: nextStats as Record<SourceId, SourceStats> });
   },
+
+  toggleSource: (id) =>
+    set((s) => ({
+      sources: {
+        ...s.sources,
+        [id]: { ...s.sources[id], enabled: !s.sources[id].enabled },
+      },
+    })),
+
+  setSourceWeight: (id, weight) =>
+    set((s) => ({
+      sources: {
+        ...s.sources,
+        [id]: { ...s.sources[id], weight: Math.max(0, Math.min(10, weight)) },
+      },
+    })),
 }));
