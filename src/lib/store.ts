@@ -4,6 +4,9 @@ import type {
   RainDetail, RainFeedback, GeoLocation, CityInfo,
   RemoteConfig, SourceState, SourceId, SourceSnapshot, SourceStats,
 } from "@/types/weather";
+import {
+  mockCurrent, mockHourly, mockDaily, mockSources, mockSnapshots, mockSourceStats,
+} from "@/lib/mock-data";
 
 interface Actions {
   setPage: (page: PageId) => void;
@@ -36,6 +39,9 @@ interface Actions {
 
   /** 调节源权重 */
   setSourceWeight: (id: SourceId, weight: number) => void;
+
+  /** 加载 mock 数据用于视觉预览 */
+  loadMock: () => void;
 }
 
 function emptyStats(): SourceStats {
@@ -158,4 +164,17 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
         [id]: { ...s.sources[id], weight: Math.max(0, Math.min(10, weight)) },
       },
     })),
+
+  loadMock: () =>
+    set({
+      location: { lat: 43.82, lng: 126.55, address: "昌邑区 · 延安路附近", district: "昌邑区", updatedAt: new Date().toISOString() },
+      current: mockCurrent,
+      hourly: mockHourly,
+      daily: mockDaily,
+      sources: mockSources as Record<SourceId, SourceState>,
+      snapshots: mockSnapshots as Record<SourceId, SourceSnapshot[]>,
+      sourceStats: mockSourceStats as Record<SourceId, SourceStats>,
+      loading: false,
+      error: null,
+    }),
 }));

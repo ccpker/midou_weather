@@ -1,4 +1,4 @@
-import { MapPin, RefreshCw, Check, X, CloudRain, Droplets, Wind as WindIcon } from "lucide-react";
+import { MapPin, RefreshCw, Check, X, CloudRain, Droplets, Wind as WindIcon, Eye } from "lucide-react";
 import { useWeatherStore } from "@/lib/store";
 import { useWeather } from "@/lib/useWeather";
 import { WeatherIcon } from "@/components/WeatherIcon";
@@ -56,21 +56,33 @@ export default function HomePage() {
               需要配置 API Key 才能获取实时天气
             </p>
           </div>
-          {/* CTA 按钮 */}
-          <button
-            onClick={() => refresh()}
-            disabled={loading}
-            className="px-8 py-3 glass-strong rounded-2xl text-sm font-medium text-white/85 active:scale-95 transition-all duration-200 hover:bg-white/[0.14]"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
+          {/* CTA 按钮组 */}
+          <div className="flex flex-col gap-3 items-center">
+            {/* 预览按钮 — 加载 mock 数据展示完整 UI */}
+            <button
+              onClick={() => {
+                useWeatherStore.getState().loadMock();
+              }}
+              className="px-8 py-3 rounded-2xl text-sm font-semibold text-white/90 active:scale-95 transition-all duration-200"
+              style={{
+                background: "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(96,165,250,0.15))",
+                border: "1px solid rgba(56,189,248,0.25)",
+                boxShadow: "0 4px 24px rgba(56,189,248,0.12)",
+              }}
+            >
               <span className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                点此获取天气
+                <Eye className="w-4 h-4" />
+                预览效果 (Mock)
               </span>
-            )}
-          </button>
+            </button>
+            <button
+              onClick={() => refresh()}
+              disabled={loading}
+              className="px-6 py-2 glass-strong rounded-full text-sm text-white/50 active:scale-95 transition-all duration-200"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
           {/* 底部徽标 — 多源融合提示 */}
           <p className="text-xs text-white/20 mt-2">6 源融合 · 水位校准 · 实时反馈</p>
         </div>
