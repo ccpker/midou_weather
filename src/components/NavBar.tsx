@@ -13,22 +13,26 @@ export default function NavBar() {
   const setPage = useWeatherStore((s) => s.setPage);
 
   return (
-    <nav className="flex justify-around items-center py-2 px-4 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
-      {tabs.map(({ id, label, icon: Icon }) => {
-        const active = page === id;
-        return (
-          <button
-            key={id}
-            onClick={() => setPage(id)}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1 rounded-lg transition-colors ${
-              active ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-[10px]">{label}</span>
-          </button>
-        );
-      })}
+    <nav className="relative z-20 safe-area-bottom">
+      <div className="mx-4 mb-3 glass rounded-2xl flex justify-around items-center py-2 px-2">
+        {tabs.map(({ id, label, icon: Icon }) => {
+          const active = page === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setPage(id)}
+              className={`flex flex-col items-center gap-0.5 py-1.5 px-5 rounded-xl transition-all duration-200 ${
+                active
+                  ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10 scale-105"
+                  : "text-[var(--color-text-muted)] hover:text-slate-300 active:scale-95"
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

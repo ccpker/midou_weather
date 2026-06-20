@@ -1,10 +1,5 @@
 /**
- * 设置页 V2 — 数据源管理 + 通用设置
- *
- * 布局:
- * 1. 数据源管理 (开关/权重/水位/延迟)
- * 2. 通用设置 (城市/提醒/配置)
- * 3. 关于
+ * 设置页 V3 — 毛玻璃移动端设计
  */
 
 import { useState } from "react";
@@ -12,7 +7,7 @@ import { useWeatherStore } from "@/lib/store";
 import type { SourceId, SourceState, SourceStats } from "@/types/weather";
 import {
   Settings, MapPin, Bell, Download, Info,
-  Activity, ToggleLeft, ToggleRight, SlidersHorizontal,
+  Activity, ToggleLeft, ToggleRight,
   TrendingUp, TrendingDown, Minus, Gauge, Zap, ShieldAlert,
 } from "lucide-react";
 
@@ -33,151 +28,152 @@ export default function SettingsPage() {
   const cities = useWeatherStore((s) => s.cities);
   const toggleSource = useWeatherStore((s) => s.toggleSource);
   const setSourceWeight = useWeatherStore((s) => s.setSourceWeight);
-  const [activeSection, setActiveSection] = useState<"sources" | "general" | null>("sources");
+  const [showSources, setShowSources] = useState(true);
+  const [showGeneral, setShowGeneral] = useState(false);
 
   const enabledCount = Object.values(sources).filter((s) => s.enabled).length;
 
   return (
-    <div className="px-4 pt-6 pb-20 space-y-4 overflow-y-auto">
-      <h2 className="text-lg font-semibold flex items-center gap-2">
+    <div className="px-5 pt-2 pb-6 space-y-4">
+      <div className="flex items-center gap-2 animate-fade-in-up">
         <Settings className="w-5 h-5 text-[var(--color-accent)]" />
-        设置
-      </h2>
+        <h2 className="text-lg font-semibold text-white">设置</h2>
+      </div>
 
-      {/* ═══ 数据源管理 — 折叠卡片 ═══ */}
-      <div className="bg-[var(--color-card)] rounded-xl overflow-hidden">
-        <button
-          onClick={() => setActiveSection(activeSection === "sources" ? null : "sources")}
-          className="flex items-center gap-2 w-full p-4 text-sm font-medium"
-        >
-          <SlidersHorizontal className="w-4 h-4 text-[var(--color-accent)]" />
-          数据源管理
-          <span className="text-xs text-[var(--color-text-muted)] ml-1">({enabledCount}/6 启用)</span>
-          <span className="ml-auto text-xs text-[var(--color-text-muted)]">
-            {activeSection === "sources" ? "收起 ▲" : "展开 ▼"}
-          </span>
-        </button>
-        {activeSection === "sources" && (
-          <div className="px-4 pb-3 space-y-2">
-            {(Object.entries(sources) as [SourceId, SourceState][]).map(([id, src]) => (
-              <SourceRow
-                key={id}
-                id={id}
-                src={src}
-                stats={sourceStats[id]}
-                latency={snapshots[id]?.slice(-1)[0]?.responseMs ?? src.lastResponseMs}
-                onToggle={() => toggleSource(id)}
-                onWeight={(w) => setSourceWeight(id, w)}
-              />
-            ))}
-          </div>
-        )}
+      {/* ═══ 数据源管理 ═══ */}
+      <div className="animate-fade-in-up delay-100">
+        <div className="glass rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setShowSources(!showSources)}
+            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-white/80"
+          >
+            <div className="w-8 h-8 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center shrink-0">
+              <Activity className="w-4 h-4 text-[var(--color-accent)]" />
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <span>数据源管理</span>
+              <span className="text-xs text-white/30 ml-2">({enabledCount}/6 启用)</span>
+            </div>
+            <span className="text-xs text-white/30 shrink-0">{showSources ? "收起 ▲" : "展开 ▼"}</span>
+          </button>
+          {showSources && (
+            <div className="px-4 pb-4 space-y-2">
+              {(Object.entries(sources) as [SourceId, SourceState][]).map(([id, src]) => (
+                <SourceRowGlow
+                  key={id}
+                  id={id}
+                  src={src}
+                  stats={sourceStats[id]}
+                  latency={snapshots[id]?.slice(-1)[0]?.responseMs ?? src.lastResponseMs}
+                  onToggle={() => toggleSource(id)}
+                  onWeight={(w) => setSourceWeight(id, w)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══ 通用设置 ═══ */}
-      <div className="bg-[var(--color-card)] rounded-xl overflow-hidden">
-        <button
-          onClick={() => setActiveSection(activeSection === "general" ? null : "general")}
-          className="flex items-center gap-2 w-full p-4 text-sm font-medium"
-        >
-          <Settings className="w-4 h-4 text-[var(--color-text-muted)]" />
-          通用
-          <span className="ml-auto text-xs text-[var(--color-text-muted)]">
-            {activeSection === "general" ? "收起 ▲" : "展开 ▼"}
-          </span>
-        </button>
-        {activeSection === "general" && (
-          <div className="px-4 pb-3 space-y-1">
-            <SettingItem icon={<MapPin className="w-3.5 h-3.5" />} label="城市管理" value={`${cities.length} 个城市`} />
-            <SettingItem icon={<Bell className="w-3.5 h-3.5" />} label="下雨提醒" value="开启" />
-            <SettingItem icon={<Download className="w-3.5 h-3.5" />} label="远程配置" value={config ? `v${config.version.name}` : "未连接"} />
-          </div>
-        )}
+      <div className="animate-fade-in-up delay-200">
+        <div className="glass rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setShowGeneral(!showGeneral)}
+            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-white/80"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+              <Settings className="w-4 h-4 text-white/50" />
+            </div>
+            <span className="flex-1 text-left">通用</span>
+            <span className="text-xs text-white/30 shrink-0">{showGeneral ? "收起 ▲" : "展开 ▼"}</span>
+          </button>
+          {showGeneral && (
+            <div className="px-4 pb-3 space-y-0.5">
+              <SettingRow icon={<MapPin className="w-4 h-4" />} label="城市管理" value={`${cities.length} 个城市`} />
+              <SettingRow icon={<Bell className="w-4 h-4" />} label="下雨提醒" value="开启" />
+              <SettingRow icon={<Download className="w-4 h-4" />} label="远程配置" value={config ? `v${config.version.name}` : "未连接"} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══ 关于 ═══ */}
-      <div className="bg-[var(--color-card)] rounded-xl p-4 space-y-1">
-        <SettingItem icon={<Info className="w-3.5 h-3.5" />} label="版本" value="米豆天气 v4.0.0" />
-        <SettingItem icon={<Activity className="w-3.5 h-3.5" />} label="引擎" value="6源加权融合 + 水位学习" />
-        <SettingItem icon={<ShieldAlert className="w-3.5 h-3.5" />} label="免责" value="仅作参考，以气象台为准" />
+      <div className="animate-fade-in-up delay-300">
+        <div className="glass rounded-2xl p-4 space-y-0.5">
+          <SettingRow icon={<Info className="w-4 h-4" />} label="版本" value="米豆天气 v4.1.0" />
+          <SettingRow icon={<Activity className="w-4 h-4" />} label="引擎" value="6源加权融合 + 水位学习" />
+          <SettingRow icon={<ShieldAlert className="w-4 h-4" />} label="免责" value="仅作参考，以气象台为准" last />
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── 通用设置项 ───
+// ═══ 设置行 ═══
 
-function SettingItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function SettingRow({ icon, label, value, last }: { icon: React.ReactNode; label: string; value: string; last?: boolean }) {
   return (
-    <div className="flex items-center gap-3 py-2.5">
-      <span className="text-[var(--color-accent)]">{icon}</span>
-      <span className="flex-1 text-sm">{label}</span>
-      <span className="text-xs text-[var(--color-text-muted)]">{value}</span>
+    <div className={`flex items-center gap-3 py-3 ${last ? "" : "border-b border-white/5"}`}>
+      <span className="text-[var(--color-accent)] shrink-0">{icon}</span>
+      <span className="flex-1 text-sm text-white/70">{label}</span>
+      <span className="text-xs text-white/30">{value}</span>
     </div>
   );
 }
 
-// ─── 数据源行 (开关 + 权重滑块 + 水位 + 延迟) ───
+// ═══ 数据源行 (毛玻璃版) ═══
 
-function SourceRow({
+function SourceRowGlow({
   id, src, stats, latency,
   onToggle, onWeight,
 }: {
-  id: SourceId;
-  src: SourceState;
-  stats?: SourceStats;
-  latency: number | null;
-  onToggle: () => void;
-  onWeight: (w: number) => void;
+  id: SourceId; src: SourceState; stats?: SourceStats; latency: number | null;
+  onToggle: () => void; onWeight: (w: number) => void;
 }) {
   const meta = SOURCE_META[id];
   const waterlineIcon =
-    src.waterline >= 3 ? <TrendingUp className="w-3 h-3 text-[var(--color-success)]" /> :
-    src.waterline <= -3 ? <TrendingDown className="w-3 h-3 text-[var(--color-danger)]" /> :
-    <Minus className="w-3 h-3 text-[var(--color-text-muted)]" />;
+    src.waterline >= 3 ? <TrendingUp className="w-3 h-3 text-green-400" /> :
+    src.waterline <= -3 ? <TrendingDown className="w-3 h-3 text-red-400" /> :
+    <Minus className="w-3 h-3 text-white/40" />;
 
   return (
-    <div className={`rounded-lg p-3 ${src.enabled ? "bg-[var(--color-bg)]" : "bg-[var(--color-bg)]/50 opacity-60"}`}>
-      {/* 头部: 名称 + 开关 */}
+    <div className={`rounded-xl p-3 ${src.enabled ? "bg-white/5" : "bg-white/3 opacity-50"}`}>
+      {/* 头部 */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <Activity className={`w-3.5 h-3.5 ${src.enabled ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"}`} />
-            <span className="text-sm font-medium truncate">{meta.label}</span>
+            <span className="text-sm font-medium text-white/80 truncate">{meta.label}</span>
           </div>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">{meta.desc}</p>
+          <p className="text-[10px] text-white/30 mt-0.5 truncate">{meta.desc}</p>
         </div>
         <button onClick={onToggle} className="ml-2 shrink-0">
           {src.enabled ? (
             <ToggleRight className="w-7 h-7 text-[var(--color-accent)]" />
           ) : (
-            <ToggleLeft className="w-7 h-7 text-[var(--color-text-muted)]" />
+            <ToggleLeft className="w-7 h-7 text-white/20" />
           )}
         </button>
       </div>
 
-      {/* 状态条: 水位 + 延迟 + 准确率 */}
-      <div className="flex items-center gap-3 text-[10px] text-[var(--color-text-muted)] mb-2">
-        <span className="flex items-center gap-0.5" title="水位(可信度)">
+      {/* 状态条 */}
+      <div className="flex items-center gap-3 text-[10px] text-white/40 mb-2.5">
+        <span className="flex items-center gap-0.5">
           <Gauge className="w-3 h-3" />{waterlineIcon}
-          <span className={`font-mono ${src.waterline > 0 ? "text-[var(--color-success)]" : src.waterline < 0 ? "text-[var(--color-danger)]" : ""}`}>
+          <span className={`font-mono font-medium ${src.waterline > 0 ? "text-green-400" : src.waterline < 0 ? "text-red-400" : ""}`}>
             {src.waterline > 0 ? "+" : ""}{src.waterline}
           </span>
         </span>
         <span className="flex items-center gap-0.5">
-          <Zap className="w-3 h-3" />
-          {latency ?? "--"}ms
+          <Zap className="w-3 h-3" />{latency ?? "--"}ms
         </span>
         {stats && stats.totalFeedbacks > 0 && (
-          <span className="flex items-center gap-0.5">
-            准确率 {stats.accuracy}%
-          </span>
+          <span>准确率 {stats.accuracy}%</span>
         )}
       </div>
 
       {/* 权重滑块 */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">权重</span>
+        <span className="text-[10px] text-white/30 shrink-0">权重</span>
         <input
           type="range"
           min={0}
@@ -186,9 +182,9 @@ function SourceRow({
           value={src.weight}
           onChange={(e) => onWeight(Number(e.target.value))}
           disabled={!src.enabled}
-          className="flex-1 h-1 accent-[var(--color-accent)] disabled:opacity-30"
+          className="flex-1 h-1 accent-[var(--color-accent)] disabled:opacity-20"
         />
-        <span className="text-xs font-mono w-8 text-right">{src.weight}</span>
+        <span className="text-xs font-mono text-white/50 w-7 text-right">{src.weight}</span>
       </div>
     </div>
   );

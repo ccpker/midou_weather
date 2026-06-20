@@ -1,26 +1,116 @@
 @import "tailwindcss";
 
-/* 天气 APP 专属调色板 */
+/* ═══ 天气APP V4.1 — 移动端视觉系统 ═══ */
+
+/* ─── 基础调色板 (深色模式) ─── */
 :root {
-  --color-bg: #020617;
+  --color-bg: #0a0e1a;
   --color-surface: #0f172a;
-  --color-card: #1e293b;
-  --color-border: #334155;
+  --color-card: rgba(255, 255, 255, 0.06);
+  --color-card-hover: rgba(255, 255, 255, 0.10);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-active: rgba(255, 255, 255, 0.15);
   --color-text: #f1f5f9;
-  --color-text-muted: #64748b;
+  --color-text-muted: #94a3b8;
   --color-accent: #38bdf8;
-  --color-rain: #3b82f6;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
-  --color-warn: #eab308;
+  --color-rain: #60a5fa;
+  --color-danger: #f87171;
+  --color-success: #4ade80;
+  --color-warn: #fbbf24;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(24px);
 }
 
+/* ─── 天气主题渐变 ─── */
+.gradient-sunny     { background: linear-gradient(180deg, #1e3a5f 0%, #0c1929 40%, #0a0e1a 70%); }
+.gradient-cloudy    { background: linear-gradient(180deg, #334155 0%, #1e293b 40%, #0a0e1a 70%); }
+.gradient-overcast  { background: linear-gradient(180deg, #374151 0%, #1e293b 40%, #0a0e1a 70%); }
+.gradient-rain      { background: linear-gradient(180deg, #1e293b 0%, #0f172a 30%, #0a0e1a 60%); }
+.gradient-heavy-rain{ background: linear-gradient(180deg, #0f172a 0%, #0a0e1a 30%, #020617 60%); }
+.gradient-thunder   { background: linear-gradient(180deg, #2d1b3d 0%, #1a1025 40%, #0a0e1a 70%); }
+.gradient-snow      { background: linear-gradient(180deg, #475569 0%, #1e293b 40%, #0a0e1a 70%); }
+.gradient-heavy-snow{ background: linear-gradient(180deg, #334155 0%, #1e293b 30%, #0a0e1a 60%); }
+.gradient-sleet     { background: linear-gradient(180deg, #334155 0%, #1e293b 40%, #0a0e1a 70%); }
+.gradient-fog       { background: linear-gradient(180deg, #64748b 0%, #334155 40%, #0a0e1a 70%); }
+.gradient-haze      { background: linear-gradient(180deg, #78716c 0%, #334155 40%, #0a0e1a 70%); }
+.gradient-wind      { background: linear-gradient(180deg, #134e4a 0%, #0f172a 40%, #0a0e1a 70%); }
+.gradient-unknown   { background: linear-gradient(180deg, #1e293b 0%, #0f172a 40%, #0a0e1a 70%); }
+
+/* ─── 毛玻璃卡片 ─── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* ─── 微动效 ─── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.1); }
+  50%      { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2); }
+}
+.animate-fade-in-up  { animation: fade-in-up 0.5s ease-out both; }
+.animate-fade-in     { animation: fade-in 0.4s ease-out; }
+.animate-pulse-glow  { animation: pulse-glow 3s ease-in-out infinite; }
+
+/* 错开延迟 */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* ─── 排版 ─── */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* 移动端安全区 */
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+/* 大温度数字 */
+.temp-display {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ─── 移动端安全区 ─── */
+.safe-area-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 12px);
+}
+.safe-area-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}
+
+/* ─── 滚动条 ─── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── 降水概率条 ─── */
+.rain-bar {
+  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
