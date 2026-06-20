@@ -1,6 +1,7 @@
 import { MapPin, RefreshCw } from "lucide-react";
 import { useWeatherStore } from "@/lib/store";
 import { useWeather } from "@/lib/useWeather";
+import { WeatherIcon } from "@/components/WeatherIcon";
 
 export default function HomePage() {
   const location = useWeatherStore((s) => s.location);
@@ -54,7 +55,8 @@ function NowCard({ current }: { current: NonNullable<ReturnType<typeof useWeathe
           <p className="text-6xl font-light tracking-tight">{temp}°</p>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">体感 {feelsLike}°</p>
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-1">
+          <WeatherIcon condition={condition} size={36} />
           <p className="text-xl font-medium">{condition}</p>
         </div>
       </div>
