@@ -44,17 +44,35 @@ export default function HomePage() {
       {loading && <LoadingState />}
       {error && !loading && <ErrorState message={error} onRetry={() => refresh()} />}
       {!loading && !error && !current && (
-        <div className="flex flex-col items-center justify-center py-16 gap-4 animate-fade-in-up delay-100">
-          <div className="w-20 h-20 rounded-full glass flex items-center justify-center">
-            <CloudRain className="w-10 h-10 text-[var(--color-accent)] opacity-60" />
+        <div className="flex flex-col items-center justify-center py-20 gap-6 animate-fade-in-up delay-100">
+          {/* 大颗天气图标 — 毛玻璃底座 */}
+          <div className="w-28 h-28 rounded-full glass-strong flex items-center justify-center animate-pulse-glow">
+            <CloudRain className="w-14 h-14 text-[var(--color-accent)]" />
           </div>
-          <p className="text-sm text-white/50">暂无天气数据</p>
+          {/* 标题与副标题 */}
+          <div className="text-center space-y-2">
+            <p className="text-xl font-semibold text-white/90">暂无天气数据</p>
+            <p className="text-sm text-white/40 leading-relaxed max-w-[240px]">
+              需要配置 API Key 才能获取实时天气
+            </p>
+          </div>
+          {/* CTA 按钮 */}
           <button
             onClick={() => refresh()}
-            className="px-5 py-2 glass rounded-full text-sm text-[var(--color-accent)] active:scale-95 transition-transform"
+            disabled={loading}
+            className="px-8 py-3 glass-strong rounded-2xl text-sm font-medium text-white/85 active:scale-95 transition-all duration-200 hover:bg-white/[0.14]"
           >
-            点此获取天气
+            {loading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                点此获取天气
+              </span>
+            )}
           </button>
+          {/* 底部徽标 — 多源融合提示 */}
+          <p className="text-xs text-white/20 mt-2">6 源融合 · 水位校准 · 实时反馈</p>
         </div>
       )}
 
