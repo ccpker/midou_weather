@@ -9,7 +9,7 @@
 
 import { useWeatherStore } from "@/lib/store";
 import { SOURCE_NAMES } from "@/lib/config";
-import type { SourceId, SourceState, RainDetail } from "@/types/weather";
+import type { SourceId, SourceState, RainDetail, SourceSnapshot } from "@/types/weather";
 import type { SourceFetchResult } from "./api/types";
 import { qweatherAdapter } from "./api/qweather";
 import { seniverseAdapter } from "./api/seniverse";
@@ -55,6 +55,7 @@ export class WeatherService {
         waterline: 0,
         lastResponseMs: null,
         lastError: null,
+        lastUpdated: null,
       };
     }
     this.store.getState().setSources(sources);
@@ -115,16 +116,27 @@ export class WeatherService {
     return Promise.all(tasks);
   }
 
-  /** 更新各源状态 */
+  /** 更新各源状态 + 推快照 */
   private _updateSourceStatus(results: SourceFetchResult[]) {
     const sources = { ...this.store.getState().sources };
+    const now = new Date().toISOString();
     for (const r of results) {
       const src = sources[r.sourceId];
       if (!src) continue;
       src.lastResponseMs = r.responseMs;
       src.lastError = r.error ?? null;
+      src.lastUpdated = now;
+      // 推快照
+      this.store.getState().pushSnapshot(r.sourceId, {
+        timestamp: now,
+        temp: r.now?.temp ?? null,
+        condition: r.now?.condition ?? null,
+        responseMs: r.responseMs,
+        error: r.error ?? null,
+      });
     }
     this.store.getState().setSources(sources);
+    this.store.getState().recomputeStats();
   }
 }
 

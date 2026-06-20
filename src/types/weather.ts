@@ -9,6 +9,31 @@ export interface SourceState {
   waterline: number;                // 水位值 (-∞,+∞)，越高越可信
   lastResponseMs: number | null;
   lastError: string | null;
+  lastUpdated: string | null;       // ISO时间戳
+}
+
+/** 单次数据源读数快照 */
+export interface SourceSnapshot {
+  timestamp: string;
+  temp: number | null;
+  condition: string | null;
+  responseMs: number;
+  error: string | null;
+}
+
+/** 数据源统计 */
+export interface SourceStats {
+  totalFetches: number;
+  errors: number;
+  avgResponseMs: number;
+  // 降水准确率 (基于反馈)
+  totalFeedbacks: number;
+  hits: number;       // 预报有雨 + 实际有雨
+  falseAlarms: number; // 预报有雨 + 实际无雨
+  misses: number;     // 预报无雨 + 实际有雨
+  correctNeg: number; // 预报无雨 + 实际无雨
+  /** 综合准确率 (0-100) */
+  accuracy: number;
 }
 
 // ─── 天气 ───
@@ -113,6 +138,10 @@ export interface AppState {
   daily: DailyForecast[];
   rainDetail: RainDetail[];
   sources: Record<SourceId, SourceState>;
+  /** 各源最近N条读数快照 (用于趋势/统计) */
+  snapshots: Record<SourceId, SourceSnapshot[]>;
+  /** 各源统计 (由快照+反馈计算) */
+  sourceStats: Record<SourceId, SourceStats>;
   feedbacks: RainFeedback[];
   config: RemoteConfig | null;
   loading: boolean;
