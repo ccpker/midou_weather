@@ -6,6 +6,7 @@ import { classifyCondition, weatherClassLabel, type WeatherClass } from "@/lib/i
 import { useMemo, type ReactNode } from "react";
 import WeatherAttackTimeline from "@/components/WeatherAttackTimeline";
 import WeatherRhythmBar from "@/components/WeatherRhythmBar";
+import MinuteRainChart from "@/components/MinuteRainChart";
 import type { SourceState, SpatialPrecision } from "@/types/weather";
 
 export default function HomePage() {
@@ -32,6 +33,7 @@ export default function HomePage() {
         <>
           <SourcePrecisionCards />
           <HeroSection current={current} weatherClass={weatherClass} location={location} />
+          <MinuteRainChart />
           {hourly.length > 0 && <WeatherAttackTimeline />}
           {hourly.length > 0 && <WeatherRhythmBar />}
           {daily.length > 0 && <DailyCards daily={daily} weatherClass={weatherClass} />}
