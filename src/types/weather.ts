@@ -1,5 +1,18 @@
 // ─── 数据源 ───
-export type SourceId = "qweather" | "seniverse" | "amap" | "caiyun" | "cma" | "api_box";
+export type SourceId = "qweather" | "openmeteo" | "amap" | "caiyun" | "cma";
+
+/** 空间精度级别 */
+export type SpatialPrecision = "point" | "district" | "city";
+
+/** 单维度请求状态 */
+export interface DimStatus {
+  ok: boolean;
+  responseMs: number;
+  error: string | null;
+}
+
+/** 维度记录键 */
+export type DimKey = "now" | "hourly" | "daily" | "rain";
 
 export interface SourceState {
   id: SourceId;
@@ -10,6 +23,10 @@ export interface SourceState {
   lastResponseMs: number | null;
   lastError: string | null;
   lastUpdated: string | null;       // ISO时间戳
+  spatialPrecision: SpatialPrecision;  // 空间精度级别
+  spatialPrecisionLabel: string;       // 人类可读 "~3km网格" "区级" "市級"
+  /** 分维度诊断状态 (now/hourly/daily/rain) */
+  dims?: Partial<Record<DimKey, DimStatus>>;
 }
 
 /** 单次数据源读数快照 */
@@ -44,7 +61,7 @@ export interface CurrentWeather {
   icon: string;                     // 天气现象图标码
   humidity: number;                 // %
   windDir: string;
-  windSpeed: number;                // m/s
+  windSpeed: number;                // 蒲福风级 (0-12)
   visibility: number;               // km
   pressure: number;                 // hPa
   uv: number;
@@ -101,12 +118,18 @@ export interface RainFeedback {
 }
 
 // ─── 定位 ───
+export type LocationSource = "gps" | "ip" | "manual" | "fallback";
+
 export interface GeoLocation {
   lat: number;
   lng: number;
   address: string;                  // 逆地理 "昌邑区·延安路附近"
   district: string;
+  province: string;
+  city: string;                     // 地级市名 (用于CMA place参数)
   updatedAt: string;
+  precision: LocationSource;        // 定位溯源
+  accuracyMeters: number | null;    // 估算精度 (GPS~5m, IP~5000m)
 }
 
 // ─── 城市 ───

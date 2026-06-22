@@ -1,52 +1,43 @@
 /**
- * API 配置 — 6源端点与认证
+ * API 配置 — 五源端点与认证
  * 
- * 生产环境 key 可从远程配置中心下发，覆盖此默认值
+ * 开发模式走 Vite proxy 绕过 CORS
+ * 生产模式(APK)直接访问，依赖 androidScheme:"https" 禁用同源限制
  */
+
+const IS_DEV = import.meta.env.DEV;
 
 export const SOURCE_CONFIG = {
   qweather: {
-    baseUrl: "https://k77h2tb3b6.re.qweatherapi.com",
+    baseUrl: IS_DEV ? "/api/qweather" : `https://${import.meta.env.VITE_QWEATHER_HOST ?? "devapi.qweather.com"}`,
     key: import.meta.env.VITE_QWEATHER_KEY ?? "",
-    cityCode: "101060201", // 吉林市
-  },
-  seniverse: {
-    baseUrl: "https://api.seniverse.com/v3",
-    key: import.meta.env.VITE_SENIVERSE_KEY ?? "",
-    location: "jilin",
   },
   amap: {
-    baseUrl: "https://restapi.amap.com/v3",
+    baseUrl: IS_DEV ? "/api/amap" : "https://restapi.amap.com/v3",
     key: import.meta.env.VITE_AMAP_KEY ?? "",
-    adcode: "220200", // 吉林市
-  },
-  cma: {
-    baseUrl: "http://d1.weather.com.cn/sk_2d",
-    cityCode: "101060201",
-    /** 移动端需走 CmaWeather 原生插件绕过 TLS 指纹检测 */
-    useNativePlugin: true,
+    adcode: "220200",
   },
   caiyun: {
-    baseUrl: "https://api.caiyunapp.com/v2.6",
-    token: "pFY4X100Ct8MXzmn",
+    baseUrl: IS_DEV ? "/api/caiyun" : "https://midou-weather-caiyun.pages.dev",
+    token: import.meta.env.VITE_CAIYUN_KEY ?? "",
   },
-  api_box: {
-    baseUrl: "https://cn.apihz.cn/api",
-    id: "10016685",
-    key: "e54c2408713989edaa053c4ec7584cf9",
-    province: "吉林",
-    city: "吉林",
+  openmeteo: {
+    baseUrl: IS_DEV ? "/api/openmeteo" : "https://api.open-meteo.com/v1",
+  },
+  cma: {
+    baseUrl: IS_DEV ? "/api/cma" : "https://cn.apihz.cn/api/tianqi",
+    id: import.meta.env.VITE_CMA_ID ?? "",
+    key: import.meta.env.VITE_CMA_KEY ?? "",
   },
 } as const;
 
 /** 源显示名 */
 export const SOURCE_NAMES: Record<string, string> = {
   qweather: "和风天气",
-  seniverse: "心知天气",
   amap: "高德地图",
-  cma: "中国气象局",
   caiyun: "彩云天气",
-  api_box: "接口盒子",
+  openmeteo: "Open-Meteo",
+  cma: "中国气象局",
 };
 
 /** 默认水位 */

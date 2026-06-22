@@ -26,7 +26,7 @@ export const qweatherAdapter = {
         iconCode: n.icon,
         humidity: parseFloat(n.humidity),
         windDir: n.windDir,
-        windSpeed: parseFloat(n.windSpeed),
+        windSpeed: parseFloat(n.windScale) || 0, // 蒲福风级
         pressure: parseFloat(n.pressure),
         visibility: parseFloat(n.vis),
         uv: 0, // 和风实况无UV

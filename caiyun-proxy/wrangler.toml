@@ -1,0 +1,6 @@
+name = "midou-weather-caiyun"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 免费计划：10 万次/天
+# 部署后 URL：https://midou-weather-caiyun.<your-subdomain>.workers.dev

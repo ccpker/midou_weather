@@ -18,6 +18,17 @@ export interface SourceFetchResult {
   rain?: NormalizedRain[];
 }
 
+// ─── 蒲福风力等级转换 (m/s → 0-12) ───
+
+const BEAUFORT_MS = [0, 0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+
+export function msToBeaufort(ms: number): number {
+  for (let i = 12; i >= 0; i--) {
+    if (ms >= BEAUFORT_MS[i]) return i;
+  }
+  return 0;
+}
+
 /** 归一化实况 */
 export interface NormalizedNow {
   temp: number;
@@ -26,7 +37,7 @@ export interface NormalizedNow {
   iconCode: string;        // 源内图标码
   humidity: number;
   windDir: string;
-  windSpeed: number;       // m/s
+  windSpeed: number;       // 蒲福风级 (0-12)
   pressure: number;
   visibility: number;
   uv: number;

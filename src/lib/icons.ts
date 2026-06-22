@@ -50,7 +50,7 @@ export function weatherClassLabel(cls: WeatherClass): string {
     sunny: "晴",
     cloudy: "多云",
     overcast: "阴",
-    rain: "雨",
+    rain: "小雨",
     "heavy-rain": "大雨",
     thunder: "雷暴",
     snow: "雪",

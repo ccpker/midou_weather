@@ -1,109 +1,88 @@
 @import "tailwindcss";
 
-/* ═══ 天气APP V4.1 — 移动端视觉系统 ═══ */
+/* ═══ 米豆天气 V4.1 — 纯白底视觉系统 ═══ */
 
-/* ─── 基础调色板 (深色模式) ─── */
+/* ─── 基础调色板 (亮色模式) ─── */
 :root {
-  --color-bg: #0a0e1a;
-  --color-surface: #0f172a;
-  --color-card: rgba(255, 255, 255, 0.06);
-  --color-card-hover: rgba(255, 255, 255, 0.10);
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-active: rgba(255, 255, 255, 0.15);
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-accent: #38bdf8;
-  --color-rain: #60a5fa;
-  --color-danger: #f87171;
-  --color-success: #4ade80;
-  --color-warn: #fbbf24;
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: blur(24px);
+  --color-bg: #ffffff;
+  --color-surface: #f8fafc;
+  --color-card: #ffffff;
+  --color-card-hover: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-active: #cbd5e1;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-accent: #0284c7;
+  --color-rain: #2563eb;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+  --color-warn: #d97706;
 }
 
-/* ─── 天气主题渐变 (每层加顶部氛围光，确保渐变可见) ─── */
+/* ─── 天气主题天空渐变 (浅色天空感, 仅用作顶部氛围) ─── */
 .gradient-sunny {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(56,189,248,0.18) 0%, transparent 60%),
-    linear-gradient(180deg, #1a3a6e 0%, #12264a 35%, #0c1929 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 30%, #ffffff 100%);
 }
 .gradient-cloudy {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(148,163,184,0.12) 0%, transparent 60%),
-    linear-gradient(180deg, #3b4560 0%, #253048 35%, #1a2438 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 40%, #ffffff 100%);
 }
 .gradient-overcast {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(148,163,184,0.10) 0%, transparent 60%),
-    linear-gradient(180deg, #404b62 0%, #2a3348 35%, #1e2638 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 40%, #ffffff 100%);
 }
 .gradient-rain {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(96,165,250,0.12) 0%, transparent 60%),
-    linear-gradient(180deg, #223354 0%, #19253e 30%, #101a2f 60%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #bfdbfe 0%, #dbeafe 35%, #f1f5f9 70%, #ffffff 100%);
 }
 .gradient-heavy-rain {
-  background:
-    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(96,165,250,0.15) 0%, transparent 55%),
-    linear-gradient(180deg, #152039 0%, #0e1629 30%, #0a1020 60%, #040814 100%);
+  background: linear-gradient(180deg, #93c5fd 0%, #bfdbfe 35%, #e2e8f0 70%, #ffffff 100%);
 }
 .gradient-thunder {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(147,51,234,0.15) 0%, transparent 55%),
-    linear-gradient(180deg, #35204a 0%, #231835 35%, #150f20 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #c4b5fd 0%, #e9d5ff 35%, #f5f3ff 70%, #ffffff 100%);
 }
 .gradient-snow {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(203,213,225,0.15) 0%, transparent 55%),
-    linear-gradient(180deg, #576478 0%, #38455a 35%, #213048 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 40%, #f8fafc 80%, #ffffff 100%);
 }
 .gradient-heavy-snow {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(203,213,225,0.18) 0%, transparent 55%),
-    linear-gradient(180deg, #465468 0%, #2c3a50 30%, #1e2638 60%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 40%, #f1f5f9 80%, #ffffff 100%);
 }
 .gradient-sleet {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(148,163,184,0.12) 0%, transparent 55%),
-    linear-gradient(180deg, #3b4760 0%, #233048 35%, #1a2438 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #cbd5e1 0%, #e0f2fe 40%, #f0f9ff 80%, #ffffff 100%);
 }
 .gradient-fog {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(148,163,184,0.08) 0%, transparent 55%),
-    linear-gradient(180deg, #67758a 0%, #45536a 35%, #2a3548 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #e7e5e4 0%, #f5f5f4 50%, #ffffff 100%);
 }
 .gradient-haze {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(168,162,158,0.10) 0%, transparent 55%),
-    linear-gradient(180deg, #7a7268 0%, #4d4858 35%, #2a2a38 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #fed7aa 0%, #ffedd5 40%, #fef3c7 80%, #ffffff 100%);
 }
 .gradient-wind {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(45,212,191,0.12) 0%, transparent 55%),
-    linear-gradient(180deg, #155a54 0%, #0e3d3a 35%, #0a2830 65%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #cffafe 0%, #e0f2fe 35%, #f0f9ff 70%, #ffffff 100%);
 }
 .gradient-unknown {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(56,189,248,0.10) 0%, transparent 55%),
-    linear-gradient(180deg, #223354 0%, #19253e 30%, #101a2f 60%, #0a0e1a 100%);
+  background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 40%, #ffffff 100%);
 }
 
-/* ─── 毛玻璃卡片 (提升可见度: 高底色+边框+内外辉光) ─── */
+/* ─── 白色卡片 — 干净极简 ─── */
 .glass {
-  background: rgba(255, 255, 255, 0.07);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.glass-day {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.glass-day-strong {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 /* ─── 微动效 ─── */
@@ -116,14 +95,13 @@
   to   { opacity: 1; }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.1); }
-  50%      { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2); }
+  0%, 100% { box-shadow: 0 0 16px rgba(2, 132, 199, 0.08); }
+  50%      { box-shadow: 0 0 28px rgba(2, 132, 199, 0.14); }
 }
 .animate-fade-in-up  { animation: fade-in-up 0.5s ease-out both; }
 .animate-fade-in     { animation: fade-in 0.4s ease-out; }
 .animate-pulse-glow  { animation: pulse-glow 3s ease-in-out infinite; }
 
-/* 错开延迟 */
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }
@@ -132,6 +110,8 @@
 
 /* ─── 排版 ─── */
 body {
+  background: #ffffff;
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -140,7 +120,6 @@ body {
   -webkit-user-select: none;
 }
 
-/* 大温度数字 */
 .temp-display {
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
@@ -162,9 +141,4 @@ body {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* ─── 降水概率条 ─── */
-.rain-bar {
-  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }

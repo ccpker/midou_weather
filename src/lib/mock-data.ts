@@ -5,6 +5,7 @@ import type {
   SourceState,
   SourceSnapshot,
   SourceStats,
+  SpatialPrecision,
 } from "@/types/weather";
 
 const now = new Date();
@@ -23,18 +24,17 @@ export const mockCurrent: CurrentWeather = {
   icon: "305",
   humidity: 78,
   windDir: "东南风",
-  windSpeed: 3.2,
+  windSpeed: 2,  // 蒲福3级 ≈ 3.2m/s
   visibility: 8,
   pressure: 1006,
   uv: 2,
   aqi: 42,
   sourceBreakdown: {
     qweather: { temp: 20, condition: "小雨", confidence: 0.88 },
-    seniverse: { temp: 19, condition: "阴", confidence: 0.82 },
+    cma: { temp: 19, condition: "阴", confidence: 0.82 },
     amap: { temp: 21, condition: "小雨", confidence: 0.85 },
     caiyun: { temp: 20, condition: "小雨", confidence: 0.91 },
-    cma: { temp: 20, condition: "小雨", confidence: 0.90 },
-    api_box: { temp: 20, condition: "阴", confidence: 0.78 },
+    openmeteo: { temp: 21, condition: "小雨", confidence: 0.86 },
   },
 };
 
@@ -62,51 +62,58 @@ export const mockDaily: DailyForecast[] = [
     date: new Date(now.getTime() + 0 * 86400000).toISOString().slice(0, 10),
     tempHigh: 23, tempLow: 16, condition: "小雨转阴", icon: "305",
     pop: 85, rainAmount: 3.2, sunrise: "04:15", sunset: "19:21",
-    windDir: "东南风", windSpeed: 3.5,
+    windDir: "东南风", windSpeed: 3, // 蒲福
   },
   {
     date: new Date(now.getTime() + 1 * 86400000).toISOString().slice(0, 10),
     tempHigh: 27, tempLow: 17, condition: "多云转晴", icon: "101",
     pop: 20, rainAmount: 0, sunrise: "04:14", sunset: "19:22",
-    windDir: "南风", windSpeed: 2.8,
+    windDir: "南风", windSpeed: 2, // 蒲福
   },
   {
     date: new Date(now.getTime() + 2 * 86400000).toISOString().slice(0, 10),
     tempHigh: 30, tempLow: 19, condition: "晴", icon: "100",
     pop: 5, rainAmount: 0, sunrise: "04:14", sunset: "19:23",
-    windDir: "西南风", windSpeed: 3.0,
+    windDir: "西南风", windSpeed: 3, // 蒲福
   },
   {
     date: new Date(now.getTime() + 3 * 86400000).toISOString().slice(0, 10),
     tempHigh: 28, tempLow: 20, condition: "多云", icon: "101",
     pop: 30, rainAmount: 0.5, sunrise: "04:13", sunset: "19:24",
-    windDir: "南风", windSpeed: 2.5,
+    windDir: "南风", windSpeed: 2, // 蒲福
   },
   {
     date: new Date(now.getTime() + 4 * 86400000).toISOString().slice(0, 10),
     tempHigh: 25, tempLow: 18, condition: "雷阵雨", icon: "302",
     pop: 70, rainAmount: 8.5, sunrise: "04:13", sunset: "19:24",
-    windDir: "东北风", windSpeed: 4.2,
+    windDir: "东北风", windSpeed: 4, // 蒲福
   },
   {
     date: new Date(now.getTime() + 5 * 86400000).toISOString().slice(0, 10),
     tempHigh: 22, tempLow: 16, condition: "小雨", icon: "305",
     pop: 65, rainAmount: 2.8, sunrise: "04:12", sunset: "19:25",
-    windDir: "北风", windSpeed: 3.8,
+    windDir: "北风", windSpeed: 3, // 蒲福
   },
   {
     date: new Date(now.getTime() + 6 * 86400000).toISOString().slice(0, 10),
     tempHigh: 26, tempLow: 17, condition: "阴转多云", icon: "104",
     pop: 25, rainAmount: 0, sunrise: "04:12", sunset: "19:26",
-    windDir: "西北风", windSpeed: 2.0,
+    windDir: "西北风", windSpeed: 2, // 蒲福
   },
 ];
 
 // ═══ 数据源 ═══
-const sourceIds = ["qweather", "seniverse", "amap", "caiyun", "cma", "api_box"] as const;
+const sourceIds = ["qweather", "openmeteo", "amap", "caiyun", "cma"] as const;
 const sourceNames: Record<string, string> = {
-  qweather: "和风天气", seniverse: "心知天气", amap: "高德",
-  caiyun: "彩云天气", cma: "中国气象局", api_box: "API盒子",
+  qweather: "和风天气", openmeteo: "Open-Meteo", amap: "高德",
+  caiyun: "彩云天气", cma: "中国气象局",
+};
+const sourcePrecisions: Record<string, { spatialPrecision: SpatialPrecision; spatialPrecisionLabel: string }> = {
+  qweather: { spatialPrecision: "point", spatialPrecisionLabel: "~3km网格" },
+  openmeteo: { spatialPrecision: "point", spatialPrecisionLabel: "~11km网格" },
+  amap: { spatialPrecision: "district", spatialPrecisionLabel: "区级" },
+  caiyun: { spatialPrecision: "point", spatialPrecisionLabel: "~5km网格" },
+  cma: { spatialPrecision: "city", spatialPrecisionLabel: "地级市" },
 };
 
 export const mockSources: Record<string, SourceState> = Object.fromEntries(
@@ -116,11 +123,13 @@ export const mockSources: Record<string, SourceState> = Object.fromEntries(
       id,
       name: sourceNames[id],
       enabled: true,
-      weight: id === "cma" ? 1.2 : 1.0,
-      waterline: id === "cma" ? 0.5 : id === "caiyun" ? 0.3 : 0,
-      lastResponseMs: [74, 90, 105, 62, 48, 130][sourceIds.indexOf(id)]!,
+      weight: 1.0,
+      waterline: id === "caiyun" ? 0.3 : 0,
+      lastResponseMs: [74, 25, 105, 62, 90][sourceIds.indexOf(id)]!,
       lastError: null,
       lastUpdated: now.toISOString(),
+      spatialPrecision: sourcePrecisions[id]?.spatialPrecision ?? "point",
+      spatialPrecisionLabel: sourcePrecisions[id]?.spatialPrecisionLabel ?? "?",
     },
   ])
 );
@@ -141,10 +150,10 @@ export const mockSnapshots: Record<string, SourceSnapshot[]> = Object.fromEntrie
 export const mockSourceStats: Record<string, SourceStats> = Object.fromEntries(
   sourceIds.map((id) => [id, {
     totalFetches: 88,
-    errors: id === "api_box" ? 3 : 0,
-    avgResponseMs: [74, 90, 105, 62, 48, 130][sourceIds.indexOf(id)]!,
+    errors: 0,
+    avgResponseMs: [74, 25, 105, 62, 90][sourceIds.indexOf(id)]!,
     totalFeedbacks: 12,
-    hits: 8, falseAlarms: id === "api_box" ? 3 : 1, misses: 1, correctNeg: 2,
-    accuracy: id === "api_box" ? 75 : 83,
+    hits: 8, falseAlarms: 1, misses: 1, correctNeg: 2,
+    accuracy: 83,
   }])
 );

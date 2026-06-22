@@ -1,6 +1,6 @@
 {
   "name": "midou-weather",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "description": "米豆天气 — 多源融合智能天气APP",
   "type": "module",
@@ -13,6 +13,7 @@
     "cap:open:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.7",
     "@capacitor/core": "^7.6.7",
     "@capacitor/geolocation": "^7.1.8",
     "@capacitor/local-notifications": "^7.0.0",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.7",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",

@@ -1,47 +1,67 @@
 /**
  * 彩云天气适配器 — 分钟级降水预报
- * Token: pFY4X100Ct8MXzmn
- * 端点: /v2.6/{token}/{lng},{lat}/weather
+ * Token 硬编码在 Cloudflare Pages Worker 服务端
+ * 
+ * 彩云 /v2.6/{lng},{lat}/weather 单次返回所有维度数据
+ * → 所有 fetchXxx 共享一次请求，避免重复调用导致 429
  */
-import { HttpClient } from "./client";
+import { HttpClient, _xhrGet } from "./client";
 import { SOURCE_CONFIG } from "@/lib/config";
-import type { SourceFetchResult, NormalizedNow, NormalizedHourly, NormalizedDaily, NormalizedRain } from "./types";
+import { msToBeaufort, type SourceFetchResult, type NormalizedNow, type NormalizedHourly, type NormalizedDaily, type NormalizedRain } from "./types";
 
 const client = new HttpClient(SOURCE_CONFIG.caiyun.baseUrl);
+
+/** 单次请求缓存（同轮 fetchAll 中复用） */
+let _CACHE: { ts: number; data: any } | null = null;
+
+/** 拉取彩云全量数据（单次 API 调用，含 2s 间隔防限流） */
+async function _fetchAll(lat: number, lng: number): Promise<any> {
+  const cache = _CACHE;
+  // 同轮已有缓存直接返回
+  if (cache && Date.now() - cache.ts < 3000) return cache.data;
+
+  // 距上次请求不足 2s → 等待
+  if (cache && Date.now() - cache.ts < 2000) {
+    await new Promise(r => setTimeout(r, 2000 - (Date.now() - cache.ts)));
+  }
+
+  const url = `${SOURCE_CONFIG.caiyun.baseUrl}/${lng.toFixed(4)},${lat.toFixed(4)}/weather`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    let res: Response;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch {
+      // fetch 被 CORS 拦截 → 走 XHR 回退
+      res = await _xhrGet(url);
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _CACHE = { ts: Date.now(), data };
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export const caiyunAdapter = {
   id: "caiyun" as const,
 
-  async _fetch(lat: number, lng: number): Promise<any> {
-    const url = `/v2.6/${SOURCE_CONFIG.caiyun.token}/${lng.toFixed(4)},${lat.toFixed(4)}/weather`;
-    // 彩云的路径结构特殊，不能直接拼 baseUrl+path，需要完整 URL
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-    try {
-      const res = await fetch(`${SOURCE_CONFIG.caiyun.baseUrl}${url}`, {
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    } finally {
-      clearTimeout(timer);
-    }
-  },
-
   async fetchNow(lat: number, lng: number): Promise<SourceFetchResult> {
     const t0 = Date.now();
     try {
-      const data = await this._fetch(lat, lng);
+      const data = await _fetchAll(lat, lng);
       const r = data.result.realtime;
       const now: NormalizedNow = {
         temp: r.temperature,
         feelsLike: r.apparent_temperature,
-        condition: r.skycon.replace(/^.+_/, ""), // "PARTLY_CLOUDY_NIGHT" → "NIGHT" (暂用)
+        condition: r.skycon.replace(/^.+_/, ""),
         iconCode: r.skycon,
         humidity: Math.round(r.humidity * 100),
         windDir: _windDir(r.wind.direction),
-        windSpeed: r.wind.speed,
-        pressure: Math.round(r.pressure / 100), // Pa→hPa
+        windSpeed: msToBeaufort(r.wind.speed),
+        pressure: Math.round(r.pressure / 100),
         visibility: r.visibility,
         uv: r.life_index.ultraviolet?.index ?? 0,
         aqi: data.result.aqi?.chn ?? null,
@@ -55,7 +75,7 @@ export const caiyunAdapter = {
   async fetchHourly(lat: number, lng: number): Promise<SourceFetchResult> {
     const t0 = Date.now();
     try {
-      const data = await this._fetch(lat, lng);
+      const data = await _fetchAll(lat, lng);
       const hourly: NormalizedHourly[] = (data.result.hourly?.precipitation ?? []).map((p: any) => {
         const skycon = data.result.hourly?.skycon?.find((s: any) => s.datetime === p.datetime);
         const temp = data.result.hourly?.temperature?.find((t: any) => t.datetime === p.datetime);
@@ -64,7 +84,7 @@ export const caiyunAdapter = {
           temp: temp?.value ?? 0,
           condition: skycon?.value ?? "",
           iconCode: skycon?.value ?? "",
-          pop: Math.round(p.probability * 100),
+          pop: Math.round(p.probability),
           rainAmount: p.value,
         };
       });
@@ -77,7 +97,7 @@ export const caiyunAdapter = {
   async fetchDaily(lat: number, lng: number): Promise<SourceFetchResult> {
     const t0 = Date.now();
     try {
-      const data = await this._fetch(lat, lng);
+      const data = await _fetchAll(lat, lng);
       const daily: NormalizedDaily[] = (data.result.daily?.temperature ?? []).map((t: any, i: number) => {
         const skycon = data.result.daily?.skycon?.[i];
         const precip = data.result.daily?.precipitation?.[i];
@@ -88,7 +108,7 @@ export const caiyunAdapter = {
           tempLow: t.min,
           condition: skycon?.value ?? "",
           iconCode: skycon?.value ?? "",
-          pop: precip ? Math.round(precip.probability * 100) : 0,
+          pop: precip ? Math.round(precip.probability) : 0,
           rainAmount: precip?.max?.value ?? 0,
           sunrise: astro?.sunrise?.time ?? "",
           sunset: astro?.sunset?.time ?? "",
@@ -105,8 +125,7 @@ export const caiyunAdapter = {
   async fetchRain(lat: number, lng: number): Promise<SourceFetchResult> {
     const t0 = Date.now();
     try {
-      const data = await this._fetch(lat, lng);
-      // 分钟级降水 (未来 2 小时)
+      const data = await _fetchAll(lat, lng);
       const rain: NormalizedRain[] = _flattenMinutelies(data.result.minutely?.precipitation_2h ?? []);
       return { sourceId: "caiyun", ok: true, responseMs: Date.now() - t0, rain };
     } catch (e: any) {
@@ -123,7 +142,6 @@ function _windDir(deg: number): string {
 function _flattenMinutelies(precip: any[]): NormalizedRain[] {
   if (!precip) return [];
   const rain: NormalizedRain[] = [];
-  // 彩云返回 [data, data, ...]，每分钟一条
   const now = Date.now();
   for (let i = 0; i < precip.length; i++) {
     rain.push({

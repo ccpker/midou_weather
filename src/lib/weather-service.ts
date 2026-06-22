@@ -9,29 +9,32 @@
 
 import { useWeatherStore } from "@/lib/store";
 import { SOURCE_NAMES } from "@/lib/config";
-import type { SourceId, SourceState, RainDetail, SourceSnapshot } from "@/types/weather";
+import type { SourceId, SourceState, RainDetail, SourceSnapshot, DimKey, DimStatus } from "@/types/weather";
 import type { SourceFetchResult } from "./api/types";
 import { qweatherAdapter } from "./api/qweather";
-import { seniverseAdapter } from "./api/seniverse";
+import { openmeteoAdapter } from "./api/openmeteo";
 import { amapAdapter } from "./api/amap";
-import { cmaAdapter } from "./api/cma";
 import { caiyunAdapter } from "./api/caiyun";
-import { apiBoxAdapter } from "./api/api_box";
+import { cmaAdapter } from "./api/cma";
 import { fuseNow, fuseHourly, fuseDaily } from "./api/fusion";
 
 // ─── 源注册表 ───
 
 type Fetcher = (lat: number, lng: number) => Promise<SourceFetchResult>;
 
-type AdapterEntry = { id: SourceId; name: string; fetchNow: Fetcher; fetchHourly?: Fetcher; fetchDaily?: Fetcher; fetchRain?: Fetcher };
+type AdapterEntry = {
+  id: SourceId; name: string;
+  fetchNow: Fetcher; fetchHourly?: Fetcher; fetchDaily?: Fetcher; fetchRain?: Fetcher;
+  spatialPrecision: "point" | "district" | "city";
+  spatialPrecisionLabel: string;
+};
 
 const ADAPTERS: AdapterEntry[] = [
-  { id: qweatherAdapter.id, name: "和风天气", fetchNow: qweatherAdapter.fetchNow, fetchHourly: qweatherAdapter.fetchHourly, fetchDaily: qweatherAdapter.fetchDaily },
-  { id: seniverseAdapter.id, name: "心知天气", fetchNow: seniverseAdapter.fetchNow, fetchDaily: seniverseAdapter.fetchDaily },
-  { id: amapAdapter.id, name: "高德地图", fetchNow: amapAdapter.fetchNow, fetchDaily: amapAdapter.fetchDaily },
-  { id: cmaAdapter.id, name: "中国气象局", fetchNow: cmaAdapter.fetchNow },
-  { id: caiyunAdapter.id, name: "彩云天气", fetchNow: caiyunAdapter.fetchNow, fetchHourly: caiyunAdapter.fetchHourly, fetchDaily: caiyunAdapter.fetchDaily, fetchRain: caiyunAdapter.fetchRain },
-  { id: apiBoxAdapter.id, name: "接口盒子", fetchNow: apiBoxAdapter.fetchNow, fetchDaily: apiBoxAdapter.fetchDaily },
+  { id: qweatherAdapter.id, name: "和风天气", fetchNow: qweatherAdapter.fetchNow, fetchHourly: qweatherAdapter.fetchHourly, fetchDaily: qweatherAdapter.fetchDaily, spatialPrecision: "point", spatialPrecisionLabel: "~3km网格" },
+  { id: openmeteoAdapter.id, name: "Open-Meteo", fetchNow: openmeteoAdapter.fetchNow, fetchHourly: openmeteoAdapter.fetchHourly, fetchDaily: openmeteoAdapter.fetchDaily, spatialPrecision: "point", spatialPrecisionLabel: "~11km网格" },
+  { id: amapAdapter.id, name: "高德地图", fetchNow: amapAdapter.fetchNow, fetchDaily: amapAdapter.fetchDaily, spatialPrecision: "district", spatialPrecisionLabel: "区级" },
+  { id: caiyunAdapter.id, name: "彩云天气", fetchNow: caiyunAdapter.fetchNow, fetchHourly: caiyunAdapter.fetchHourly, fetchDaily: caiyunAdapter.fetchDaily, fetchRain: caiyunAdapter.fetchRain, spatialPrecision: "point", spatialPrecisionLabel: "~5km网格" },
+  { id: cmaAdapter.id, name: "中国气象局", fetchNow: cmaAdapter.fetchNow, fetchHourly: cmaAdapter.fetchHourly, fetchDaily: cmaAdapter.fetchDaily, spatialPrecision: "city", spatialPrecisionLabel: "地级市" },
 ];
 
 // ─── 公开 API ───
@@ -56,6 +59,8 @@ export class WeatherService {
         lastResponseMs: null,
         lastError: null,
         lastUpdated: null,
+        spatialPrecision: adp.spatialPrecision,
+        spatialPrecisionLabel: adp.spatialPrecisionLabel,
       };
     }
     this.store.getState().setSources(sources);
@@ -68,7 +73,7 @@ export class WeatherService {
 
     // 并发请求所有源的实况数据
     const nowResults = await this._fetchAll("now", lat, lng);
-    this._updateSourceStatus(nowResults);
+    this._updateSourceStatus(nowResults, "now");
 
     // 融合实况
     const current = fuseNow(nowResults, this.store.getState().sources);
@@ -80,7 +85,9 @@ export class WeatherService {
       this._fetchAll("daily", lat, lng),
       this._fetchAll("rain", lat, lng),
     ]);
-    this._updateSourceStatus([...hourlyResults, ...dailyResults, ...rainResults]);
+    this._updateSourceStatus(hourlyResults, "hourly");
+    this._updateSourceStatus(dailyResults, "daily");
+    this._updateSourceStatus(rainResults, "rain");
 
     // 融合预报
     const hourly = fuseHourly(hourlyResults);
@@ -116,24 +123,31 @@ export class WeatherService {
     return Promise.all(tasks);
   }
 
-  /** 更新各源状态 + 推快照 */
-  private _updateSourceStatus(results: SourceFetchResult[]) {
+  /** 更新各源状态 + 推快照 + 记录分维度诊断 */
+  private _updateSourceStatus(results: SourceFetchResult[], kind?: DimKey) {
     const sources = { ...this.store.getState().sources };
     const now = new Date().toISOString();
     for (const r of results) {
       const src = sources[r.sourceId];
       if (!src) continue;
       src.lastResponseMs = r.responseMs;
-      src.lastError = r.error ?? null;
+      src.lastError = r.error === "不支持此数据维度" ? src.lastError : (r.error ?? null);
       src.lastUpdated = now;
-      // 推快照
-      this.store.getState().pushSnapshot(r.sourceId, {
-        timestamp: now,
-        temp: r.now?.temp ?? null,
-        condition: r.now?.condition ?? null,
-        responseMs: r.responseMs,
-        error: r.error ?? null,
-      });
+      // 分维度诊断
+      if (kind) {
+        const dim: DimStatus = { ok: r.ok, responseMs: r.responseMs, error: r.error ?? null };
+        src.dims = { ...src.dims, [kind]: dim };
+      }
+      // 只推有实况数据的快照（避免 rain/daily/hourly 维度冲掉 now 快照）
+      if (r.now) {
+        this.store.getState().pushSnapshot(r.sourceId, {
+          timestamp: now,
+          temp: r.now.temp ?? null,
+          condition: r.now.condition ?? null,
+          responseMs: r.responseMs,
+          error: r.error ?? null,
+        });
+      }
     }
     this.store.getState().setSources(sources);
     this.store.getState().recomputeStats();

@@ -167,7 +167,7 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
 
   loadMock: () =>
     set({
-      location: { lat: 43.82, lng: 126.55, address: "昌邑区 · 延安路附近", district: "昌邑区", updatedAt: new Date().toISOString() },
+      location: { lat: 43.82, lng: 126.55, address: "昌邑区 · 延安路附近", district: "昌邑区", province: "吉林省", city: "吉林", updatedAt: new Date().toISOString(), precision: "ip", accuracyMeters: 5000 },
       current: mockCurrent,
       hourly: mockHourly,
       daily: mockDaily,

@@ -1,35 +1,87 @@
 /**
- * 定位服务 — GPS + 高德逆地理编码
- * 
- * 策略:
- * 1. Capacitor Geolocation 拿经纬度 (高精度模式)
- * 2. 高德逆地理编码 → 街道级地址
- * 3. 写入 Zustand Store
+ * 定位服务 — 多级降级策略 + 高德逆地理编码
+ *
+ * 策略 (按优先级):
+ * 1. navigator.geolocation — WebView AOSP 位置框架, 无 GMS 也能用 (国内 ROM 首选)
+ * 2. Capacitor Geolocation — 需要 GMS, 仅 Google 服务手机
+ * 3. 高德 IP 定位 — 无 GPS 可用时的网络定位
+ * 4. 硬编码兜底 — 长春坐标
+ * 5. 高德逆地理编码 → 街道级地址
+ * 6. 写入 Zustand Store (含精度溯源)
  */
 
 import { useWeatherStore } from "@/lib/store";
 import { SOURCE_CONFIG } from "@/lib/config";
+import type { LocationSource } from "@/types/weather";
 
 /** 定位 + 逆地理 -> Store */
 export async function locateUser(): Promise<void> {
   const store = useWeatherStore.getState();
 
-  // 高德 IP 定位兜底
-  const { lat, lng } = await getCoords();
-  store.setLocation({ lat, lng, address: "定位中...", district: "", updatedAt: new Date().toISOString() });
+  // 获取坐标 (含精度信息)
+  const { lat, lng, precision, accuracyMeters } = await getCoords();
 
-  // 逆地理
-  const address = await regeo(lat, lng);
-  store.setLocation({ lat, lng, address, district: address, updatedAt: new Date().toISOString() });
+  // 初步设置坐标
+  store.setLocation({
+    lat, lng,
+    address: "定位中...",
+    district: "",
+    province: "",
+    city: "",
+    updatedAt: new Date().toISOString(),
+    precision,
+    accuracyMeters,
+  });
+
+  // 逆地理 → 街道/区/市
+  const addr = await regeo(lat, lng);
+  store.setLocation({
+    lat, lng,
+    address: addr.street,
+    district: addr.district,
+    province: addr.province,
+    city: addr.city,
+    updatedAt: new Date().toISOString(),
+    precision,
+    accuracyMeters,
+  });
 }
+
+type PrecisionResult = {
+  lat: number; lng: number;
+  precision: LocationSource;
+  accuracyMeters: number;
+};
 
 /**
  * 获取坐标
- * 生产环境: Capacitor Geolocation (GPS/基站/WiFi)
- * 开发环境: 高德 IP 定位兜底
+ * 优先级: Capacitor GPS → 高德 IP 定位 → hardcoded fallback
  */
-async function getCoords(): Promise<{ lat: number; lng: number }> {
-  // 尝试 Capacitor Geolocation
+async function getCoords(): Promise<PrecisionResult> {
+  // 1. 首选 navigator.geolocation (WebView AOSP 位置框架, 无 GMS 也能用)
+  //    国内 MIUI/ColorOS/HarmonyOS 等 ROM 都有自有位置服务实现
+  try {
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("not supported"));
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 60000,
+      });
+    });
+    if (pos.coords) {
+      return {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        precision: "gps",
+        accuracyMeters: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 5,
+      };
+    }
+  } catch {
+    // navigator.geolocation 不可用 (少数 ROM 禁止 WebView 定位)
+  }
+
+  // 2. 尝试 Capacitor Geolocation (需要 GMS, 仅 Google 服务手机)
   try {
     const { Geolocation } = await import("@capacitor/geolocation");
     const perm = await Geolocation.checkPermissions();
@@ -37,41 +89,63 @@ async function getCoords(): Promise<{ lat: number; lng: number }> {
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000, // 1分钟缓存
+        maximumAge: 60000,
       });
       if (pos.coords) {
-        return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        return {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          precision: "gps",
+          accuracyMeters: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 5,
+        };
       }
     }
   } catch {
-    // Capacitor 不可用 (开发/浏览器环境)
+    // Capacitor 不可用 / 无 GMS
   }
 
-  // 兜底: 高德 IP 定位
-  return ipLocate();
+  // 3. 兜底: 高德 IP 定位
+  const ip = await ipLocate();
+  if (ip) return ip;
+
+  // 4. 最终兜底: 长春坐标
+  return {
+    lat: 43.8377, lng: 126.5494,
+    precision: "fallback",
+    accuracyMeters: 50000,
+  };
 }
 
 /** 高德 IP 定位 (无需 GPS) */
-async function ipLocate(): Promise<{ lat: number; lng: number }> {
+async function ipLocate(): Promise<PrecisionResult | null> {
   const key = SOURCE_CONFIG.amap.key;
   try {
     const url = `https://restapi.amap.com/v3/ip?key=${key}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.status === "1" && data.rectangle) {
-      // rectangle: "126.1,43.7;126.8,44.0" → 取中心
       const [sw, ne] = data.rectangle.split(";");
       const [lng1, lat1] = sw.split(",").map(Number);
       const [lng2, lat2] = ne.split(",").map(Number);
-      return { lat: (lat1 + lat2) / 2, lng: (lng1 + lng2) / 2 };
+      // IP 定位精度估算: 矩形对角线长度 → 半径
+      const dLat = Math.abs(lat2 - lat1);
+      const dLng = Math.abs(lng2 - lng1);
+      const approxMeters = Math.round(Math.max(dLat, dLng) * 111000 / 2);
+      return {
+        lat: (lat1 + lat2) / 2,
+        lng: (lng1 + lng2) / 2,
+        precision: "ip",
+        accuracyMeters: approxMeters,
+      };
     }
   } catch {}
-  // 最终兜底: 吉林市坐标
-  return { lat: 43.8377, lng: 126.5494 };
+  return null;
 }
 
-/** 高德逆地理编码 → 街道级地址 */
-async function regeo(lat: number, lng: number): Promise<string> {
+/** 高德逆地理编码 → 街道级地址 + 区/市/省 */
+async function regeo(lat: number, lng: number): Promise<{
+  street: string; district: string; province: string; city: string;
+}> {
   const key = SOURCE_CONFIG.amap.key;
   try {
     const url = `https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${lng.toFixed(6)},${lat.toFixed(6)}&extensions=base&radius=1000`;
@@ -79,11 +153,16 @@ async function regeo(lat: number, lng: number): Promise<string> {
     const data = await res.json();
     if (data.status === "1" && data.regeocode) {
       const addr = data.regeocode.addressComponent;
-      if (addr.streetNumber?.street && addr.streetNumber?.number) {
-        return `${addr.district}·${addr.street} ${addr.streetNumber.number}号`;
-      }
-      return data.regeocode.formatted_address ?? "未知位置";
+      const street = addr.streetNumber?.street && addr.streetNumber?.number
+        ? `${addr.district} · ${addr.streetNumber.street} ${addr.streetNumber.number}号`
+        : data.regeocode.formatted_address ?? "未知位置";
+      return {
+        street,
+        district: addr.district || "",
+        province: addr.province || "",
+        city: (addr.city || addr.district || "").replace(/市$/, ""),
+      };
     }
   } catch {}
-  return `${lat.toFixed(2)},${lng.toFixed(2)}`;
+  return { street: `${lat.toFixed(2)},${lng.toFixed(2)}`, district: "", province: "", city: "" };
 }

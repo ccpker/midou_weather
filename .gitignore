@@ -4,3 +4,9 @@ android/
 ios/
 *.log
 .DS_Store
+
+.env
+*.apk
+android/app/build/
+.capacitor/
+

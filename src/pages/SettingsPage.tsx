@@ -13,11 +13,10 @@ import {
 
 const SOURCE_META: Record<SourceId, { label: string; desc: string }> = {
   qweather:  { label: "和风天气", desc: "国家级授权，权威稳定" },
-  seniverse: { label: "心知天气", desc: "分钟级降水，彩云源" },
+  openmeteo: { label: "Open-Meteo", desc: "全球开放气象，无Key" },
   amap:      { label: "高德天气", desc: "定位精准，逆地理强" },
   caiyun:    { label: "彩云天气", desc: "AI降水预测，2h精度" },
   cma:       { label: "国家气象局", desc: "官方数据，覆盖全国" },
-  api_box:   { label: "API盒子", desc: "多源聚合，备用兜底" },
 };
 
 export default function SettingsPage() {
@@ -45,16 +44,16 @@ export default function SettingsPage() {
         <div className="glass rounded-2xl overflow-hidden">
           <button
             onClick={() => setShowSources(!showSources)}
-            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-white/80"
+            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-gray-700"
           >
             <div className="w-8 h-8 rounded-xl bg-[var(--color-accent)]/10 flex items-center justify-center shrink-0">
               <Activity className="w-4 h-4 text-[var(--color-accent)]" />
             </div>
             <div className="text-left flex-1 min-w-0">
               <span>数据源管理</span>
-              <span className="text-xs text-white/30 ml-2">({enabledCount}/6 启用)</span>
+              <span className="text-xs text-gray-400 ml-2">({enabledCount}/5 启用)</span>
             </div>
-            <span className="text-xs text-white/30 shrink-0">{showSources ? "收起 ▲" : "展开 ▼"}</span>
+            <span className="text-xs text-gray-400 shrink-0">{showSources ? "收起 ▲" : "展开 ▼"}</span>
           </button>
           {showSources && (
             <div className="px-4 pb-4 space-y-2">
@@ -79,13 +78,13 @@ export default function SettingsPage() {
         <div className="glass rounded-2xl overflow-hidden">
           <button
             onClick={() => setShowGeneral(!showGeneral)}
-            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-white/80"
+            className="flex items-center gap-2 w-full p-4 text-sm font-medium text-gray-700"
           >
-            <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-              <Settings className="w-4 h-4 text-white/50" />
+            <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+              <Settings className="w-4 h-4 text-gray-500" />
             </div>
             <span className="flex-1 text-left">通用</span>
-            <span className="text-xs text-white/30 shrink-0">{showGeneral ? "收起 ▲" : "展开 ▼"}</span>
+            <span className="text-xs text-gray-400 shrink-0">{showGeneral ? "收起 ▲" : "展开 ▼"}</span>
           </button>
           {showGeneral && (
             <div className="px-4 pb-3 space-y-0.5">
@@ -115,8 +114,8 @@ function SettingRow({ icon, label, value, last }: { icon: React.ReactNode; label
   return (
     <div className={`flex items-center gap-3 py-3 ${last ? "" : "border-b border-white/5"}`}>
       <span className="text-[var(--color-accent)] shrink-0">{icon}</span>
-      <span className="flex-1 text-sm text-white/70">{label}</span>
-      <span className="text-xs text-white/30">{value}</span>
+      <span className="flex-1 text-sm text-gray-600">{label}</span>
+      <span className="text-xs text-gray-400">{value}</span>
     </div>
   );
 }
@@ -134,29 +133,29 @@ function SourceRowGlow({
   const waterlineIcon =
     src.waterline >= 3 ? <TrendingUp className="w-3 h-3 text-green-400" /> :
     src.waterline <= -3 ? <TrendingDown className="w-3 h-3 text-red-400" /> :
-    <Minus className="w-3 h-3 text-white/40" />;
+    <Minus className="w-3 h-3 text-gray-400" />;
 
   return (
-    <div className={`rounded-xl p-3 ${src.enabled ? "bg-white/5" : "bg-white/3 opacity-50"}`}>
+    <div className={`rounded-xl p-3 ${src.enabled ? "bg-gray-50" : "bg-gray-50/50 opacity-60"}`}>
       {/* 头部 */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-white/80 truncate">{meta.label}</span>
+            <span className="text-sm font-medium text-gray-700 truncate">{meta.label}</span>
           </div>
-          <p className="text-[10px] text-white/30 mt-0.5 truncate">{meta.desc}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5 truncate">{meta.desc}</p>
         </div>
         <button onClick={onToggle} className="ml-2 shrink-0">
           {src.enabled ? (
             <ToggleRight className="w-7 h-7 text-[var(--color-accent)]" />
           ) : (
-            <ToggleLeft className="w-7 h-7 text-white/20" />
+            <ToggleLeft className="w-7 h-7 text-gray-200" />
           )}
         </button>
       </div>
 
       {/* 状态条 */}
-      <div className="flex items-center gap-3 text-[10px] text-white/40 mb-2.5">
+      <div className="flex items-center gap-3 text-[10px] text-gray-400 mb-2.5">
         <span className="flex items-center gap-0.5">
           <Gauge className="w-3 h-3" />{waterlineIcon}
           <span className={`font-mono font-medium ${src.waterline > 0 ? "text-green-400" : src.waterline < 0 ? "text-red-400" : ""}`}>
@@ -173,7 +172,7 @@ function SourceRowGlow({
 
       {/* 权重滑块 */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-white/30 shrink-0">权重</span>
+        <span className="text-[10px] text-gray-400 shrink-0">权重</span>
         <input
           type="range"
           min={0}
@@ -184,7 +183,7 @@ function SourceRowGlow({
           disabled={!src.enabled}
           className="flex-1 h-1 accent-[var(--color-accent)] disabled:opacity-20"
         />
-        <span className="text-xs font-mono text-white/50 w-7 text-right">{src.weight}</span>
+        <span className="text-xs font-mono text-gray-500 w-7 text-right">{src.weight}</span>
       </div>
     </div>
   );

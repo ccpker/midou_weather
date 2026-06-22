@@ -23,8 +23,8 @@ export default function NavBar() {
               onClick={() => setPage(id)}
               className={`flex flex-col items-center gap-0.5 py-1.5 px-5 rounded-xl transition-all duration-200 ${
                 active
-                  ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10 scale-105"
-                  : "text-[var(--color-text-muted)] hover:text-slate-300 active:scale-95"
+                  ? "text-[var(--color-accent)] bg-sky-50 scale-105"
+                  : "text-[var(--color-text-muted)] hover:text-gray-600 active:scale-95"
               }`}
             >
               <Icon className="w-5 h-5" />

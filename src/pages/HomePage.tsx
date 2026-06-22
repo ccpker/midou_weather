@@ -1,13 +1,12 @@
-import { MapPin, RefreshCw, Check, X, CloudRain, Droplets, Wind as WindIcon, Eye } from "lucide-react";
+import { MapPin, RefreshCw, CloudRain, Droplets, Wind as WindIcon, Eye, Target, Navigation } from "lucide-react";
 import { useWeatherStore } from "@/lib/store";
 import { useWeather } from "@/lib/useWeather";
 import { WeatherIcon } from "@/components/WeatherIcon";
-import { classifyCondition, weatherClassLabel } from "@/lib/icons";
-import { useMemo, useState } from "react";
-import type { SourceId } from "@/types/weather";
-
-const ALL_SOURCE_IDS: SourceId[] = ["qweather", "seniverse", "amap", "caiyun", "cma", "api_box"];
-const RAIN_POP_THRESHOLD = 40;
+import { classifyCondition, weatherClassLabel, type WeatherClass } from "@/lib/icons";
+import { useMemo, type ReactNode } from "react";
+import WeatherAttackTimeline from "@/components/WeatherAttackTimeline";
+import WeatherRhythmBar from "@/components/WeatherRhythmBar";
+import type { SourceState, SpatialPrecision } from "@/types/weather";
 
 export default function HomePage() {
   const location = useWeatherStore((s) => s.location);
@@ -22,238 +21,249 @@ export default function HomePage() {
   );
 
   return (
-    <div className="px-5 pt-2 pb-6 space-y-5">
-      {/* 定位栏 — iOS 风格 */}
-      <div className="flex items-center justify-between animate-fade-in-up">
-        <div className="flex items-center gap-1.5">
-          <MapPin className="w-4 h-4 text-[var(--color-accent)]" />
-          <span className="text-sm text-white/80 font-medium truncate max-w-[200px]">
-            {location?.address ?? "定位中..."}
-          </span>
-        </div>
-        <button
-          onClick={() => refresh()}
-          disabled={loading}
-          className="p-2 rounded-full glass active:scale-90 transition-transform"
-        >
-          <RefreshCw className={`w-4 h-4 text-white/70 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </div>
+    <div className="px-5 pt-2 pb-6 space-y-4">
+      <LocationBar location={location} loading={loading} onRefresh={refresh} />
 
-      {/* 状态驱动 */}
       {loading && <LoadingState />}
       {error && !loading && <ErrorState message={error} onRetry={() => refresh()} />}
-      {!loading && !error && !current && (
-        <div className="flex flex-col items-center justify-center py-20 gap-6 animate-fade-in-up delay-100">
-          {/* 大颗天气图标 — 毛玻璃底座 */}
-          <div className="w-28 h-28 rounded-full glass-strong flex items-center justify-center animate-pulse-glow">
-            <CloudRain className="w-14 h-14 text-[var(--color-accent)]" />
-          </div>
-          {/* 标题与副标题 */}
-          <div className="text-center space-y-2">
-            <p className="text-xl font-semibold text-white/90">暂无天气数据</p>
-            <p className="text-sm text-white/40 leading-relaxed max-w-[240px]">
-              需要配置 API Key 才能获取实时天气
-            </p>
-          </div>
-          {/* CTA 按钮组 */}
-          <div className="flex flex-col gap-3 items-center">
-            {/* 预览按钮 — 加载 mock 数据展示完整 UI */}
-            <button
-              onClick={() => {
-                useWeatherStore.getState().loadMock();
-              }}
-              className="px-8 py-3 rounded-2xl text-sm font-semibold text-white/90 active:scale-95 transition-all duration-200"
-              style={{
-                background: "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(96,165,250,0.15))",
-                border: "1px solid rgba(56,189,248,0.25)",
-                boxShadow: "0 4px 24px rgba(56,189,248,0.12)",
-              }}
-            >
-              <span className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                预览效果 (Mock)
-              </span>
-            </button>
-            <button
-              onClick={() => refresh()}
-              disabled={loading}
-              className="px-6 py-2 glass-strong rounded-full text-sm text-white/50 active:scale-95 transition-all duration-200"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-          {/* 底部徽标 — 多源融合提示 */}
-          <p className="text-xs text-white/20 mt-2">6 源融合 · 水位校准 · 实时反馈</p>
-        </div>
-      )}
+      {!loading && !error && !current && <EmptyState />}
 
       {current && (
         <>
-          {/* 当前温度卡片 */}
-          <NowCardHero current={current} weatherClass={weatherClass} />
-
-          {/* 小时预报 — 横向滚动条 */}
-          {hourly.length > 0 && <HourlyStrip hourly={hourly} />}
-
-          {/* 雨量校准反馈 */}
-          {hourly.length > 0 && <FeedbackSection hourly={hourly} />}
-
-          {/* 每日预报 */}
-          {daily.length > 0 && <DailyCards daily={daily} />}
+          <SourcePrecisionCards />
+          <HeroSection current={current} weatherClass={weatherClass} location={location} />
+          {hourly.length > 0 && <WeatherAttackTimeline />}
+          {hourly.length > 0 && <WeatherRhythmBar />}
+          {daily.length > 0 && <DailyCards daily={daily} weatherClass={weatherClass} />}
         </>
       )}
     </div>
   );
 }
 
-// ═══ 当前温度 Hero 卡片 ═══
+// ═══ 定位栏 ═══
 
-function NowCardHero({
-  current,
-  weatherClass,
+function LocationBar({
+  location, loading, onRefresh,
 }: {
-  current: NonNullable<ReturnType<typeof useWeatherStore.getState>["current"]>;
-  weatherClass: ReturnType<typeof classifyCondition> | null;
+  location: ReturnType<typeof useWeatherStore.getState>["location"];
+  loading: boolean;
+  onRefresh: () => void;
 }) {
-  const { temp, feelsLike, condition, humidity, windDir, windSpeed, aqi } = current;
-  const label = weatherClass ? weatherClassLabel(weatherClass) : condition;
+  const label = location?.district
+    ? location.district + (location.address ? " · " + location.address.replace(location.district, "").replace(/^[\s·]+/, "") : "")
+    : location?.address ?? "定位中...";
+
+  const precisionBadge = location ? (() => {
+    switch (location.precision) {
+      case "gps": return { text: "GPS", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+      case "ip": return { text: "IP定位", color: "bg-amber-50 text-amber-700 border-amber-200" };
+      case "manual": return { text: "手动", color: "bg-sky-50 text-sky-700 border-sky-200" };
+      case "fallback": return { text: "默认位置", color: "bg-red-50 text-red-600 border-red-200" };
+      default: return null;
+    }
+  })() : null;
+
+  const accuracyLabel = location?.accuracyMeters
+    ? location.accuracyMeters >= 1000
+      ? `±${Math.round(location.accuracyMeters / 1000)}km`
+      : `±${location.accuracyMeters}m`
+    : null;
 
   return (
-    <div className="animate-fade-in-up delay-100 flex flex-col items-center py-3">
-      {/* 大温度 */}
-      <p className="text-[5rem] leading-none font-thin temp-display text-white tracking-tighter">
-        {Math.round(temp)}<span className="text-4xl">°</span>
-      </p>
-
-      {/* 天气状态 */}
-      <div className="flex items-center gap-2 mt-2">
-        <WeatherIcon condition={condition} size={28} />
-        <span className="text-xl font-medium text-white/90">{label}</span>
-      </div>
-
-      {/* 体感 */}
-      <p className="text-sm text-white/50 mt-1">体感 {Math.round(feelsLike)}°</p>
-
-      {/* 指标行 */}
-      <div className="flex items-center gap-5 mt-4">
-        <div className="flex items-center gap-1 text-xs text-white/50">
-          <Droplets className="w-3.5 h-3.5 text-[var(--color-rain)]" />
-          <span>{humidity}%</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-white/50">
-          <WindIcon className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-          <span>{windDir} {windSpeed}m/s</span>
-        </div>
-        {aqi !== null && (
-          <div className="flex items-center gap-1 text-xs">
-            <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
-              aqi <= 50 ? "bg-green-500/20 text-green-400" :
-              aqi <= 100 ? "bg-yellow-500/20 text-yellow-400" :
-              aqi <= 150 ? "bg-orange-500/20 text-orange-400" :
-              "bg-red-500/20 text-red-400"
-            }`}>
-              AQI {aqi}
-            </span>
-          </div>
+    <div className="flex items-center justify-between animate-fade-in-up">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <MapPin className="w-4 h-4 text-sky-500 shrink-0" />
+        <span className="text-sm text-gray-800 font-medium truncate">{label}</span>
+        {precisionBadge && (
+          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] leading-none border ${precisionBadge.color}`}>
+            {precisionBadge.text}
+          </span>
+        )}
+        {accuracyLabel && (
+          <span className="text-[10px] text-gray-400 shrink-0">{accuracyLabel}</span>
         )}
       </div>
+      <button
+        onClick={onRefresh}
+        disabled={loading}
+        className="p-2 rounded-full bg-gray-100 active:bg-gray-200 active:scale-90 transition-transform shrink-0 ml-2"
+      >
+        <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
+      </button>
     </div>
   );
 }
 
-// ═══ 小时预报条 — 模仿 iOS Weather 横向滚动 ═══
+// ═══ 空状态 ═══
 
-function HourlyStrip({ hourly }: { hourly: ReturnType<typeof useWeatherStore.getState>["hourly"] }) {
-  // 取前 24 小时，拐点+每3小时
-  const display = hourly.slice(0, 24).filter((h, i) => h.isTurning || i % 3 === 0 || i === 0);
-
-  // 温度范围用于柱状图
-  const temps = display.map((h) => h.temp);
-  const minT = Math.min(...temps);
-  const maxT = Math.max(...temps);
-  const range = Math.max(maxT - minT, 1);
+function EmptyState() {
+  const sources = useWeatherStore((s) => s.sources);
+  const sourceList = Object.values(sources).filter(s => s.enabled);
+  const aliveCount = sourceList.filter(s => s.lastError === null && s.lastUpdated !== null).length;
 
   return (
-    <div className="animate-fade-in-up delay-200">
-      <div className="glass rounded-2xl px-4 py-4">
-        <p className="text-xs font-medium text-white/40 mb-3">未来24小时</p>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-          {display.map((h, i) => {
-            const hour = new Date(h.time).getHours();
-            const label = i === 0 ? "现在" : `${hour}时`;
-            const barH = 12 + ((h.temp - minT) / range) * 28;
-
+    <div className="flex flex-col items-center justify-center py-12 gap-4 animate-fade-in-up delay-100">
+      <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+        <CloudRain className="w-10 h-10 text-gray-400 animate-pulse-glow" />
+      </div>
+      <div className="text-center space-y-1.5">
+        <p className="text-base font-semibold text-gray-700">等待数据源响应...</p>
+        <p className="text-xs text-gray-400 max-w-[260px] leading-relaxed">
+          正在从 {sourceList.length} 个气象源获取数据
+        </p>
+      </div>
+      {sourceList.length > 0 && (
+        <div className="grid grid-cols-2 gap-1.5 w-full max-w-[260px]">
+          {sourceList.map((s) => {
+            const hasData = s.lastUpdated !== null && s.lastError === null;
+            const hasError = s.lastError !== null;
             return (
-              <div key={i} className="flex flex-col items-center min-w-[52px] gap-1.5 shrink-0">
-                <span className="text-[11px] text-white/50">{label}</span>
-                <div
-                  className="w-1 rounded-full bg-gradient-to-t from-[var(--color-accent)]/40 to-[var(--color-accent)]/80 rain-bar"
-                  style={{ height: `${barH}px` }}
-                />
-                <span className="text-xs font-medium text-white/80">{Math.round(h.temp)}°</span>
-                {h.pop > 0 && (
-                  <span className="text-[10px] text-[var(--color-rain)]">
-                    {h.pop}%
-                  </span>
-                )}
+              <div key={s.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] ${
+                hasData ? 'bg-emerald-50 text-emerald-700' :
+                hasError ? 'bg-red-50 text-red-500' :
+                'bg-gray-100 text-gray-400 animate-pulse'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  hasData ? 'bg-emerald-500' : hasError ? 'bg-red-400' : 'bg-gray-300'
+                }`} />
+                {s.name}
               </div>
             );
           })}
         </div>
+      )}
+      <button
+        onClick={() => useWeatherStore.getState().loadMock()}
+        className="px-5 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-700 active:scale-95 transition-all duration-200 bg-gray-100 border border-gray-200"
+      >
+        <span className="flex items-center gap-1.5">
+          <Eye className="w-3 h-3" />
+          预览 Mock 数据
+        </span>
+      </button>
+    </div>
+  );
+}
+
+// ═══ Hero — 温度左置 + 指标右列 ═══
+
+function HeroSection({
+  current,
+  weatherClass,
+  location,
+}: {
+  current: NonNullable<ReturnType<typeof useWeatherStore.getState>["current"]>;
+  weatherClass: ReturnType<typeof classifyCondition> | null;
+  location: ReturnType<typeof useWeatherStore.getState>["location"];
+}) {
+  const { temp, feelsLike, humidity, windDir, windSpeed, aqi } = current;
+  const locationLabel = location?.district ?? location?.address ?? "";
+
+  return (
+    <div className="animate-fade-in-up delay-100">
+      <div className="glass-day-strong rounded-2xl px-5 py-4 flex items-start gap-4">
+        <div className="shrink-0">
+          <p className="text-[6rem] leading-none font-thin temp-display text-gray-900 tracking-[-0.04em]">
+            {Math.round(temp)}<span className="text-3xl align-top ml-0.5">°</span>
+          </p>
+          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+            {weatherClass && (
+              <>
+                <WeatherIcon condition={current.condition} size={14} />
+                <span className="text-gray-500">{weatherClassLabel(weatherClass)}</span>
+              </>
+            )}
+            <span>{locationLabel}</span>
+          </p>
+        </div>
+
+        <div className="flex-1 pt-2 space-y-2.5">
+          <StatLine icon="🌡️" label="体感" value={`${Math.round(feelsLike)}°`} />
+          <StatLine icon={<Droplets className="w-3.5 h-3.5 text-blue-500" />} label="湿度" value={`${humidity}%`} />
+          <StatLine icon={<WindIcon className="w-3.5 h-3.5 text-teal-500" />} label="风力" value={`${windDir} ${windSpeed}级`} />
+          {aqi !== null ? (
+            <StatLine
+              icon={
+                <span className={`w-3.5 h-3.5 rounded-full text-[8px] font-bold flex items-center justify-center shrink-0 ${
+                  aqi <= 50 ? "bg-green-100 text-green-700" :
+                  aqi <= 100 ? "bg-yellow-100 text-yellow-700" :
+                  aqi <= 150 ? "bg-orange-100 text-orange-700" :
+                  "bg-red-100 text-red-700"
+                }`}>AQ</span>
+              }
+              label="空气"
+              value={aqi <= 50 ? "优" : aqi <= 100 ? "良" : aqi <= 150 ? "轻度" : "差"}
+            />
+          ) : (
+            <StatLine icon={<Eye className="w-3.5 h-3.5 text-gray-300" />} label="能见" value="--" />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ═══ 每日预报 — 毛玻璃列表 ═══
+function StatLine({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 flex items-center justify-center w-4">{icon}</span>
+      <span className="text-xs text-gray-400 w-8 shrink-0">{label}</span>
+      <span className="text-sm font-medium text-gray-800">{value}</span>
+    </div>
+  );
+}
 
-function DailyCards({ daily }: { daily: ReturnType<typeof useWeatherStore.getState>["daily"] }) {
+// ═══ 每日预报 — 白色列表 + 温度条 ═══
+
+function DailyCards({
+  daily,
+  weatherClass,
+}: {
+  daily: ReturnType<typeof useWeatherStore.getState>["daily"];
+  weatherClass: ReturnType<typeof classifyCondition> | null;
+}) {
   const temps = daily.flatMap((d) => [d.tempLow, d.tempHigh]);
   const minT = Math.min(...temps);
   const maxT = Math.max(...temps);
   const range = Math.max(maxT - minT, 1);
 
   return (
-    <div className="animate-fade-in-up delay-300">
-      <div className="glass rounded-2xl px-4 py-4">
-        <p className="text-xs font-medium text-white/40 mb-3">未来7天</p>
+    <div className="animate-fade-in-up delay-400">
+      <div className="glass-day rounded-2xl px-4 py-4">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">未来7天</p>
         <div className="space-y-0">
           {daily.slice(0, 7).map((d, i) => {
             const leftPct = ((d.tempLow - minT) / range) * 100;
-            const widthPct = Math.max(((d.tempHigh - d.tempLow) / range) * 100, 8);
+            const widthPct = Math.max(((d.tempHigh - d.tempLow) / range) * 100, 10);
 
             return (
-              <div key={i} className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
-                {/* 星期 */}
-                <span className={`w-10 text-sm shrink-0 ${
-                  i === 0 ? "text-white font-medium" : "text-white/50"
+              <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+                <span className={`w-11 text-sm shrink-0 ${
+                  i === 0 ? "text-gray-900 font-semibold" : "text-gray-500"
                 }`}>
                   {i === 0 ? "今天" : new Date(d.date).toLocaleDateString("zh", { weekday: "short" })}
                 </span>
-
-                {/* 天气图标 */}
-                <WeatherIcon condition={d.condition} size={18} />
-
-                {/* 温度条 */}
-                <div className="flex-1 flex items-center gap-2 h-4">
-                  <span className="text-xs text-white/30 w-8 text-right tabular-nums">{d.tempLow}°</span>
-                  <div className="flex-1 h-1 bg-white/5 rounded-full relative overflow-hidden">
+                <div className="flex items-center gap-1.5 w-18 shrink-0">
+                  <WeatherIcon condition={d.condition} size={16} />
+                </div>
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-xs text-gray-400 w-8 text-right tabular-nums font-medium">{d.tempLow}°</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full relative overflow-hidden">
                     <div
-                      className="absolute h-full rounded-full bg-gradient-to-r from-blue-400/70 to-orange-400/70"
+                      className="absolute h-full rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-400"
                       style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
                     />
                   </div>
-                  <span className="text-xs text-white/80 w-8 tabular-nums">{d.tempHigh}°</span>
+                  <span className="text-xs text-gray-800 w-8 tabular-nums font-semibold">{d.tempHigh}°</span>
                 </div>
-
-                {/* 降水概率 */}
-                {d.pop > 0 && (
-                  <span className="text-[11px] text-[var(--color-rain)] w-8 text-right shrink-0">
-                    {d.pop}%
-                  </span>
+                {d.pop > 20 ? (
+                  <span className="text-[11px] font-medium text-blue-500 w-8 text-right shrink-0">{d.pop}%</span>
+                ) : d.pop > 0 ? (
+                  <span className="text-[11px] text-gray-400 w-8 text-right shrink-0">{d.pop}%</span>
+                ) : (
+                  <span className="w-8 shrink-0" />
                 )}
-                {d.pop === 0 && <span className="w-8 shrink-0" />}
               </div>
             );
           })}
@@ -263,128 +273,98 @@ function DailyCards({ daily }: { daily: ReturnType<typeof useWeatherStore.getSta
   );
 }
 
-// ═══ 反馈区 — 雨量校准 ═══
+// ═══ 数据源精度 + 位置卡片 ═══
 
-function FeedbackSection({ hourly }: { hourly: ReturnType<typeof useWeatherStore.getState>["hourly"] }) {
-  const applyFeedback = useWeatherStore((s) => s.applyFeedback);
-  const addFeedback = useWeatherStore((s) => s.addFeedback);
-  const feedbacks = useWeatherStore((s) => s.feedbacks);
+function sourceAreaLabel(s: SourceState, addr: string, district: string, city: string): string {
+  const precisionMap: Record<SpatialPrecision, (() => string)> = {
+    point: () => {
+      if (s.spatialPrecisionLabel.includes("11km")) return district || city || "未知";
+      const street = addr.replace(district, "").replace(/^[\s·]+/, "").slice(0, 8).trim();
+      return street || district || city || "未知";
+    },
+    district: () => district || "未知",
+    city: () => city || "未知",
+  };
+  return precisionMap[s.spatialPrecision]?.() ?? "未知";
+}
+
+function SourcePrecisionCards() {
   const sources = useWeatherStore((s) => s.sources);
-  const [expanded, setExpanded] = useState(false);
-  const [submitted, setSubmitted] = useState<Set<string>>(new Set());
+  const location = useWeatherStore((s) => s.location);
+  const sourceBreakdown = useWeatherStore((s) => s.current?.sourceBreakdown);
+  const entries = Object.values(sources).filter(s => s.enabled);
 
-  const feedbackSlots = useMemo(() => {
-    const now = Date.now();
-    return hourly
-      .filter((h) => {
-        const t = new Date(h.time).getTime();
-        return t <= now + 3600_000 && t >= now - 6 * 3600_000;
-      })
-      .slice(0, 4);
-  }, [hourly]);
+  if (entries.length === 0 || !location) return null;
 
-  const fedBackTimes = useMemo(() => new Set(feedbacks.map((f) => f.forecastTime)), [feedbacks]);
+  const { address, district, city } = location;
 
-  const activeSources = useMemo(() => {
-    return (Object.entries(sources) as [SourceId, typeof sources[SourceId]][])
-      .filter(([, s]) => s.enabled)
-      .map(([id]) => id);
-  }, [sources]);
-
-  const handleFeedback = (forecastTime: string, predicted: boolean, actual: boolean) => {
-    if (submitted.has(forecastTime)) return;
-    const now = new Date().toISOString();
-    addFeedback({ forecastTime, predicted, actual, reportedAt: now });
-    applyFeedback({ forecastTime, predicted, actual, reportedAt: now }, activeSources);
-    setSubmitted((prev) => new Set(prev).add(forecastTime));
+  const precisionColorMap: Record<SpatialPrecision, string> = {
+    point: "border-emerald-200 bg-emerald-50/60",
+    district: "border-sky-200 bg-sky-50/60",
+    city: "border-amber-200 bg-amber-50/60",
   };
 
-  if (feedbackSlots.length === 0) return null;
+  const precisionIcon: Record<SpatialPrecision, string> = {
+    point: "🎯",
+    district: "🏘️",
+    city: "🏙️",
+  };
 
   return (
-    <div className="animate-fade-in-up delay-400">
-      <div className="glass rounded-2xl px-4 py-3">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 text-sm font-medium text-white/60 w-full"
-        >
-          <CloudRain className="w-4 h-4 text-[var(--color-rain)]" />
-          雨量校准
-          <span className="ml-auto text-xs text-white/30">{expanded ? "收起 ▲" : "展开 ▼"}</span>
-        </button>
-
-        {expanded && (
-          <div className="space-y-1.5 pt-3">
-            <p className="text-[10px] text-white/30 mb-2">点 ✅ 表示实际下了雨，点 ❌ 表示没下雨 — 帮助训练水位系统</p>
-            {feedbackSlots.map((h) => {
-              const predicted = h.pop >= RAIN_POP_THRESHOLD;
-              const alreadyFed = fedBackTimes.has(h.time) || submitted.has(h.time);
-              const existing = feedbacks.find((f) => f.forecastTime === h.time);
-
-              return (
-                <div
-                  key={h.time}
-                  className={`flex items-center justify-between py-2 px-3 rounded-xl text-sm ${
-                    alreadyFed ? "bg-white/3 opacity-60" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-white/50 w-12">
-                      {new Date(h.time).toLocaleTimeString("zh", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className="text-sm text-white/80">{Math.round(h.temp)}°</span>
-                    <span className={`text-xs ${predicted ? "text-[var(--color-rain)] font-medium" : "text-white/40"}`}>
-                      {predicted ? `有雨 ${h.pop}%` : `无雨 ${h.pop}%`}
-                    </span>
-                  </div>
-
-                  {alreadyFed ? (
-                    <span className="text-xs">
-                      {existing?.actual ? (
-                        <span className="text-[var(--color-success)] flex items-center gap-1">
-                          <Check className="w-3 h-3" /> 下了
-                        </span>
-                      ) : (
-                        <span className="text-[var(--color-danger)] flex items-center gap-1">
-                          <X className="w-3 h-3" /> 没下
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => handleFeedback(h.time, predicted, true)}
-                        className="px-2.5 py-1 rounded-full bg-[var(--color-success)]/15 text-[var(--color-success)] text-xs font-medium active:scale-90 transition-transform"
-                      >
-                        <Check className="w-3.5 h-3.5 inline mr-0.5" />下了
-                      </button>
-                      <button
-                        onClick={() => handleFeedback(h.time, predicted, false)}
-                        className="px-2.5 py-1 rounded-full bg-[var(--color-danger)]/15 text-[var(--color-danger)] text-xs font-medium active:scale-90 transition-transform"
-                      >
-                        <X className="w-3.5 h-3.5 inline mr-0.5" />没下
-                      </button>
-                    </div>
-                  )}
+    <div className="animate-fade-in-up delay-100">
+      <div className="glass-day rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Target className="w-3 h-3 text-gray-400" />
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">数据来源</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {entries.map((s) => {
+            const area = sourceAreaLabel(s, address, district, city);
+            const bd = sourceBreakdown?.[s.id];
+            return (
+              <div
+                key={s.id}
+                className={`rounded-xl px-2.5 py-2 border ${precisionColorMap[s.spatialPrecision] ?? "border-gray-200"}`}
+              >
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[11px] font-semibold text-gray-800">{s.name}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    s.lastError ? "bg-red-400" : s.lastUpdated ? "bg-emerald-400" : "bg-gray-300"
+                  }`} />
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                  <span>{precisionIcon[s.spatialPrecision] ?? "📍"}</span>
+                  <span>{s.spatialPrecisionLabel}</span>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-gray-600 truncate flex items-center gap-0.5">
+                    <Navigation className="w-2.5 h-2.5 shrink-0" />
+                    {area}
+                  </span>
+                </div>
+                {bd && (
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    {bd.temp}° · {bd.condition}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-// ═══ 状态组件 ═══
-
 function LoadingState() {
+  const sources = useWeatherStore((s) => s.sources);
+  const sourceEntries = Object.values(sources).filter(s => s.enabled);
+
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4 animate-fade-in">
-      <div className="w-20 h-20 rounded-full glass animate-pulse-glow flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-[var(--color-accent)] animate-spin" />
+    <div className="flex flex-col items-center justify-center py-20 gap-4 animate-fade-in">
+      <div className="w-20 h-20 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 text-sky-400 animate-spin" />
       </div>
-      <p className="text-sm text-white/40 animate-pulse">获取天气中...</p>
+      <p className="text-sm text-gray-500">正在从 {sourceEntries.length} 个气象源获取数据...</p>
     </div>
   );
 }
@@ -392,13 +372,13 @@ function LoadingState() {
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 gap-4 animate-fade-in">
-      <div className="w-16 h-16 rounded-full glass flex items-center justify-center">
-        <X className="w-8 h-8 text-red-400" />
+      <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+        <span className="text-2xl">⚠️</span>
       </div>
-      <p className="text-sm text-red-400 max-w-[240px] text-center">{message}</p>
+      <p className="text-sm text-red-500 max-w-[240px] text-center">{message}</p>
       <button
         onClick={onRetry}
-        className="px-6 py-2 glass rounded-full text-sm text-[var(--color-accent)] active:scale-95 transition-transform"
+        className="px-6 py-2 bg-white border border-gray-200 rounded-full text-sm text-sky-600 active:scale-95 transition-transform shadow-sm"
       >
         重试
       </button>

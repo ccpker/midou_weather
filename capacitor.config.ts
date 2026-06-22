@@ -20,7 +20,7 @@ const config: CapacitorConfig = {
     // 开发时连接本地 Vite dev server
     // url: "http://192.168.1.x:5173",
     // cleartext: true,
-    // androidScheme: "https",
+    androidScheme: "https",
   },
   android: {
     allowMixedContent: true,
