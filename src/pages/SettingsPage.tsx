@@ -10,6 +10,7 @@ import {
   Activity, ToggleLeft, ToggleRight,
   TrendingUp, TrendingDown, Minus, Gauge, Zap, ShieldAlert,
 } from "lucide-react";
+import UpdateBanner from "@/components/UpdateBanner";
 
 const SOURCE_META: Record<SourceId, { label: string; desc: string }> = {
   qweather:  { label: "和风天气", desc: "国家级授权，权威稳定" },
@@ -37,6 +38,11 @@ export default function SettingsPage() {
       <div className="flex items-center gap-2 animate-fade-in-up">
         <Settings className="w-5 h-5 text-[var(--color-accent)]" />
         <h2 className="text-lg font-semibold text-white">设置</h2>
+      </div>
+
+      {/* ═══ 更新检查 ═══ */}
+      <div className="animate-fade-in-up delay-50">
+        <UpdateBanner />
       </div>
 
       {/* ═══ 数据源管理 ═══ */}
@@ -99,7 +105,7 @@ export default function SettingsPage() {
       {/* ═══ 关于 ═══ */}
       <div className="animate-fade-in-up delay-300">
         <div className="glass rounded-2xl p-4 space-y-0.5">
-          <SettingRow icon={<Info className="w-4 h-4" />} label="版本" value="米豆天气 v4.1.0" />
+          <SettingRow icon={<Info className="w-4 h-4" />} label="版本" value="米豆天气 v4.2.0" />
           <SettingRow icon={<Activity className="w-4 h-4" />} label="引擎" value="6源加权融合 + 水位学习" />
           <SettingRow icon={<ShieldAlert className="w-4 h-4" />} label="免责" value="仅作参考，以气象台为准" last />
         </div>
