@@ -205,6 +205,7 @@ function fmtHour(offsetH: number): string {
 
 function AttackRowDisplay({ atk, rainDetail }: { atk: AttackRow; rainDetail: RainEntry[] }) {
   const bounds = preciseBounds(atk.startHour, atk.endHour, rainDetail);
+  const hasRain = bounds !== null;
   const rangeS = bounds?.startStr ?? `${fmtHour(atk.startHour)}:00`;
   const rangeE = bounds?.endStr ?? `${fmtHour(atk.endHour + 1)}:00`;
   const attackBlocks = atk.blocks.filter((b) => b.weatherClass !== "sunny");
@@ -223,6 +224,12 @@ function AttackRowDisplay({ atk, rainDetail }: { atk: AttackRow; rainDetail: Rai
               atk.dayLabel === "明天" ? "text-blue-600" : "text-gray-500"
             }`}>{atk.dayLabel}</span>
             <span className="text-[10px] text-gray-500 font-mono">{rangeS}~{rangeE}</span>
+        {!hasRain && rainDetail.length > 0 && (
+          <span className="text-[8px] text-gray-300 italic" title="两源均无降水数据，回落小时级">(小时级)</span>
+        )}
+        {rainDetail.length === 0 && (
+          <span className="text-[8px] text-gray-300 italic" title="分钟级降水源未返回数据">(无分钟数据)</span>
+        )}
           </>
         )}
         {atk.ongoing ? (
