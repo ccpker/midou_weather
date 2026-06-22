@@ -3,7 +3,7 @@
  */
 import { HttpClient } from "./client";
 import { SOURCE_CONFIG } from "@/lib/config";
-import type { SourceFetchResult, NormalizedNow, NormalizedHourly, NormalizedDaily } from "./types";
+import type { SourceFetchResult, NormalizedNow, NormalizedHourly, NormalizedDaily, NormalizedRain } from "./types";
 
 const client = new HttpClient(SOURCE_CONFIG.qweather.baseUrl, {
   "X-QW-Api-Key": SOURCE_CONFIG.qweather.key,
@@ -78,6 +78,22 @@ export const qweatherAdapter = {
         windSpeed: parseFloat(d.windSpeedDay || "0"),
       }));
       return { sourceId: "qweather", ok: true, responseMs: Date.now() - t0, daily };
+    } catch (e: any) {
+      return { sourceId: "qweather", ok: false, responseMs: Date.now() - t0, error: e.message };
+    }
+  },
+
+  async fetchRain(lat: number, lng: number): Promise<SourceFetchResult> {
+    const t0 = Date.now();
+    try {
+      const data = await client.get<any>("/v7/minutely/5m", {
+        location: `${lng.toFixed(2)},${lat.toFixed(2)}`,
+      });
+      const rain: NormalizedRain[] = (data.minutely || []).map((m: any) => ({
+        time: m.fxTime,
+        intensity: parseFloat(m.precip),
+      }));
+      return { sourceId: "qweather", ok: true, responseMs: Date.now() - t0, rain };
     } catch (e: any) {
       return { sourceId: "qweather", ok: false, responseMs: Date.now() - t0, error: e.message };
     }

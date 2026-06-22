@@ -16,7 +16,7 @@ import { openmeteoAdapter } from "./api/openmeteo";
 import { amapAdapter } from "./api/amap";
 import { caiyunAdapter } from "./api/caiyun";
 import { cmaAdapter } from "./api/cma";
-import { fuseNow, fuseHourly, fuseDaily } from "./api/fusion";
+import { fuseNow, fuseHourly, fuseDaily, fuseRain } from "./api/fusion";
 
 // ─── 源注册表 ───
 
@@ -30,7 +30,7 @@ type AdapterEntry = {
 };
 
 const ADAPTERS: AdapterEntry[] = [
-  { id: qweatherAdapter.id, name: "和风天气", fetchNow: qweatherAdapter.fetchNow, fetchHourly: qweatherAdapter.fetchHourly, fetchDaily: qweatherAdapter.fetchDaily, spatialPrecision: "point", spatialPrecisionLabel: "~3km网格" },
+  { id: qweatherAdapter.id, name: "和风天气", fetchNow: qweatherAdapter.fetchNow, fetchHourly: qweatherAdapter.fetchHourly, fetchDaily: qweatherAdapter.fetchDaily, fetchRain: qweatherAdapter.fetchRain, spatialPrecision: "point", spatialPrecisionLabel: "~3km网格" },
   { id: openmeteoAdapter.id, name: "Open-Meteo", fetchNow: openmeteoAdapter.fetchNow, fetchHourly: openmeteoAdapter.fetchHourly, fetchDaily: openmeteoAdapter.fetchDaily, spatialPrecision: "point", spatialPrecisionLabel: "~11km网格" },
   { id: amapAdapter.id, name: "高德地图", fetchNow: amapAdapter.fetchNow, fetchDaily: amapAdapter.fetchDaily, spatialPrecision: "district", spatialPrecisionLabel: "区级" },
   { id: caiyunAdapter.id, name: "彩云天气", fetchNow: caiyunAdapter.fetchNow, fetchHourly: caiyunAdapter.fetchHourly, fetchDaily: caiyunAdapter.fetchDaily, fetchRain: caiyunAdapter.fetchRain, spatialPrecision: "point", spatialPrecisionLabel: "~5km网格" },
@@ -95,10 +95,10 @@ export class WeatherService {
     if (hourly.length) this.store.getState().setHourly(hourly);
     if (daily.length) this.store.getState().setDaily(daily);
 
-    // 彩云分钟级降水
-    const rainResult = rainResults.find((r) => r.sourceId === "caiyun" && r.ok && r.rain);
-    if (rainResult?.rain) {
-      this.store.getState().setRainDetail(rainResult.rain as RainDetail[]);
+    // 分钟级降水 — 多源融合 (彩云1min + 和风5min)
+    const rainDetail = fuseRain(rainResults);
+    if (rainDetail.length) {
+      this.store.getState().setRainDetail(rainDetail);
     }
 
     this.store.getState().setLoading(false);

@@ -9,7 +9,7 @@
 
 import type {
   SourceId, SourceState, SourceForecast, CurrentWeather,
-  HourlyForecast, DailyForecast,
+  HourlyForecast, DailyForecast, RainDetail,
 } from "@/types/weather";
 import type {
   NormalizedNow, NormalizedHourly, NormalizedDaily, SourceFetchResult,
@@ -178,6 +178,31 @@ function _markTurningPoints(hourly: HourlyForecast[]): HourlyForecast[] {
     if (Math.abs(hourly[i].rainAmount - hourly[i - 1].rainAmount) > 5) hourly[i].isTurning = true;
   }
   return hourly;
+}
+
+/** 融合分钟级降水 — 5分钟桶聚合 + 多源平均 */
+export function fuseRain(results: SourceFetchResult[]): RainDetail[] {
+  const alive = results.filter((r) => r.ok && r.rain && r.rain.length > 0);
+  if (alive.length === 0) return [];
+
+  const bucketMap = new Map<string, { sum: number; count: number }>();
+  for (const r of alive) {
+    for (const p of r.rain!) {
+      const t = new Date(p.time).getTime();
+      const snapped = t - (t % (5 * 60 * 1000));
+      const key = new Date(snapped).toISOString();
+      const entry = bucketMap.get(key);
+      if (entry) { entry.sum += p.intensity; entry.count++; }
+      else bucketMap.set(key, { sum: p.intensity, count: 1 });
+    }
+  }
+
+  return [...bucketMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([time, { sum, count }]) => ({
+      time,
+      intensity: Math.round((sum / count) * 100) / 100,
+    }));
 }
 
 /** 计算多源对融合结果的置信度 */
