@@ -3,19 +3,30 @@ import type {
   AppState, PageId, CurrentWeather, HourlyForecast, DailyForecast,
   RainDetail, RainFeedback, GeoLocation, CityInfo,
   RemoteConfig, SourceState, SourceId, SourceSnapshot, SourceStats,
+  PrimarySourceId, SourceWeatherData,
 } from "@/types/weather";
 import {
   mockCurrent, mockHourly, mockDaily, mockSources, mockSnapshots, mockSourceStats,
 } from "@/lib/mock-data";
 
+const emptySourceData = (): SourceWeatherData => ({
+  current: null,
+  hourly: [],
+  daily: [],
+  rainDetail: [],
+  loading: false,
+  error: null,
+});
+
 interface Actions {
   setPage: (page: PageId) => void;
   setLocation: (loc: GeoLocation) => void;
   setCities: (cities: CityInfo[]) => void;
-  setCurrent: (w: CurrentWeather) => void;
-  setHourly: (h: HourlyForecast[]) => void;
-  setDaily: (d: DailyForecast[]) => void;
-  setRainDetail: (r: RainDetail[]) => void;
+  setActiveTab: (id: PrimarySourceId) => void;
+
+  /** 设置某个主源的天气数据 */
+  setSourceWeather: (id: PrimarySourceId, data: Partial<SourceWeatherData>) => void;
+
   setSources: (s: Record<SourceId, SourceState>) => void;
   updateSourceWaterline: (id: SourceId, delta: number) => void;
   setConfig: (c: RemoteConfig) => void;
@@ -55,11 +66,7 @@ function computeStats(snaps: SourceSnapshot[], feedbacks: RainFeedback[], source
   const responseTimes = snaps.filter((x) => x.responseMs > 0).map((x) => x.responseMs);
   s.avgResponseMs = responseTimes.length > 0 ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0;
 
-  // 从反馈关联的源列表统计
   for (const f of feedbacks) {
-    // 简化: 用 sourceId 参与的所有反馈来统计(实际应精确匹配各源预报)
-    // 这里以 feedback 中 sourceIds 是否包含此源为准
-    // TODO: 精确到各源逐条预报的命中/误报
     s.totalFeedbacks++;
     if (f.predicted && f.actual) s.hits++;
     else if (f.predicted && !f.actual) s.falseAlarms++;
@@ -77,10 +84,9 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
   page: "home",
   location: null,
   cities: [],
-  current: null,
-  hourly: [],
-  daily: [],
-  rainDetail: [],
+  activeTab: "caiyun",
+  caiyun: emptySourceData(),
+  qweather: emptySourceData(),
   sources: {} as Record<SourceId, SourceState>,
   snapshots: {} as Record<SourceId, SourceSnapshot[]>,
   sourceStats: {} as Record<SourceId, SourceStats>,
@@ -92,10 +98,16 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
   setPage: (page) => set({ page }),
   setLocation: (loc) => set({ location: loc }),
   setCities: (cities) => set({ cities }),
-  setCurrent: (w) => set({ current: w }),
-  setHourly: (h) => set({ hourly: h }),
-  setDaily: (d) => set({ daily: d }),
-  setRainDetail: (r) => set({ rainDetail: r }),
+  setActiveTab: (activeTab) => set({ activeTab }),
+
+  setSourceWeather: (id, data) =>
+    set((s) => {
+      const prev = s[id];
+      return {
+        [id]: { ...prev, ...data },
+      } as Partial<AppState>;
+    }),
+
   setSources: (sources) => set({ sources }),
   updateSourceWaterline: (id, delta) =>
     set((s) => ({
@@ -111,7 +123,6 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
   pushSnapshot: (id, snap) =>
     set((s) => {
       const prev = s.snapshots[id] ?? [];
-      // 保留最近20条
       const next = [...prev, snap].slice(-20);
       return { snapshots: { ...s.snapshots, [id]: next } };
     }),
@@ -131,7 +142,6 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
         else if (!f.predicted && f.actual) delta = -3;
         nextSources[id] = { ...src, waterline: src.waterline + delta };
       }
-      // 重算统计
       const nextFeedbacks = [...s.feedbacks, f];
       const nextStats: Record<string, SourceStats> = {};
       for (const sid of (Object.keys(nextSources) as SourceId[])) {
@@ -168,9 +178,9 @@ export const useWeatherStore = create<AppState & Actions>((set, get) => ({
   loadMock: () =>
     set({
       location: { lat: 43.82, lng: 126.55, address: "昌邑区 · 延安路附近", district: "昌邑区", province: "吉林省", city: "吉林", updatedAt: new Date().toISOString(), precision: "ip", accuracyMeters: 5000 },
-      current: mockCurrent,
-      hourly: mockHourly,
-      daily: mockDaily,
+      activeTab: "caiyun",
+      caiyun: { current: mockCurrent, hourly: mockHourly, daily: mockDaily, rainDetail: [], loading: false, error: null },
+      qweather: emptySourceData(),
       sources: mockSources as Record<SourceId, SourceState>,
       snapshots: mockSnapshots as Record<SourceId, SourceSnapshot[]>,
       sourceStats: mockSourceStats as Record<SourceId, SourceStats>,

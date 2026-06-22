@@ -82,9 +82,15 @@ function blockIcon(wc: WeatherClass): "thunder" | "snow" | null {
 
 // ─── 主组件 ───
 
-export default function WeatherAttackTimeline() {
-  const hourly = useWeatherStore((s) => s.hourly);
-  const rainDetail = useWeatherStore((s) => s.rainDetail);
+export default function WeatherAttackTimeline({
+  hourly,
+  rainDetail,
+  otherHourly,
+}: {
+  hourly: import("@/types/weather").HourlyForecast[];
+  rainDetail: import("@/types/weather").RainDetail[];
+  otherHourly?: import("@/types/weather").HourlyForecast[];
+}) {
 
   const attacks: AttackRow[] = useMemo(() => {
     if (hourly.length === 0) return [];
@@ -144,6 +150,42 @@ export default function WeatherAttackTimeline() {
     });
   }, [hourly]);
 
+  // 其他源的攻击检测 (跨源告警用)
+  const otherAttacks: AttackRow[] = useMemo(() => {
+    if (!otherHourly || otherHourly.length === 0) return [];
+    const allH: (AttackBlock | null)[] = [];
+    for (let i = 0; i < Math.min(otherHourly.length, 48); i++) {
+      const h = otherHourly[i];
+      const wc = classifyCondition(h.condition);
+      allH.push(isAttack(wc, h.pop, h.rainAmount)
+        ? { hour: i, weatherClass: wc, condition: h.condition, intensity: attackIntensity(wc, h.rainAmount, h.pop), pop: h.pop, rainAmount: h.rainAmount }
+        : null);
+    }
+    const idxs: number[] = [];
+    allH.forEach((b, i) => { if (b) idxs.push(i); });
+    if (idxs.length === 0) return [];
+    const groups: number[][] = [];
+    let prev = idxs[0];
+    let cur = [prev];
+    for (let i = 1; i < idxs.length; i++) {
+      if (idxs[i] === prev + 1) { cur.push(idxs[i]); }
+      else { groups.push(cur); cur = [idxs[i]]; }
+      prev = idxs[i];
+    }
+    groups.push(cur);
+    const nowH = new Date().getHours();
+    return groups.map((indices) => {
+      const fh = indices[0]; const lh = indices[indices.length - 1];
+      const blocks: AttackBlock[] = [];
+      for (let h = fh; h <= lh; h++) blocks.push(allH[h] ?? { ...EMPTY, hour: h });
+      const doff = Math.floor((nowH + fh) / 24);
+      return { dayLabel: doff === 0 ? "今天" : doff === 1 ? "明天" : doff === 2 ? "后天" : "", ongoing: fh === 0, hoursUntil: fh === 0 ? null : fh, blocks, startHour: fh, endHour: lh };
+    });
+  }, [otherHourly]);
+
+  // 确定其他源名称
+  const otherSourceLabel = useWeatherStore((s) => s.sources.openmeteo ? "和风" : "和风天气") ?? "其他源";
+
   return (
     <div className="animate-fade-in-up delay-200 space-y-3">
       <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -152,9 +194,34 @@ export default function WeatherAttackTimeline() {
         <span className="font-normal normal-case text-gray-300 ml-1">攻击时间轴</span>
       </p>
       {attacks.length === 0 ? (
-        <div className="glass-day rounded-xl px-3 py-3 text-center">
-          <span className="text-[11px] text-gray-400">近48h内无明显异常天气 ☀️</span>
-        </div>
+        <>
+          <div className="glass-day rounded-xl px-3 py-3 text-center">
+            <span className="text-[11px] text-gray-400">近48h内无明显异常天气 ☀️</span>
+          </div>
+          {/* 跨源告警: 本页无攻击，但其他源有 */}
+          {otherAttacks.length > 0 && (
+            <div className="glass-day rounded-xl px-3 py-2.5 border border-amber-200 bg-amber-50/40">
+              <p className="text-[10px] text-amber-700 flex items-center gap-1 mb-1.5">
+                <span className="text-xs">⚠️</span>
+                和风天气预报有异常
+              </p>
+              {otherAttacks.slice(0, 2).map((atk, i) => {
+                const startLabel = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), new Date().getHours() + atk.startHour, 0).toLocaleTimeString("zh", { hour: "2-digit", minute: "2-digit" });
+                const endLabel = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), new Date().getHours() + atk.endHour + 1, 0).toLocaleTimeString("zh", { hour: "2-digit", minute: "2-digit" });
+                const wc = atk.blocks.find((b) => b.weatherClass !== "sunny")?.weatherClass;
+                return (
+                  <p key={i} className="text-[10px] text-amber-600 flex items-center gap-1 truncate">
+                    {atk.dayLabel} {startLabel}~{endLabel}
+                    {wc && <span className="text-amber-500">· {weatherClassLabel(wc)}</span>}
+                  </p>
+                );
+              })}
+              {otherAttacks.length > 2 && (
+                <p className="text-[9px] text-amber-400 mt-0.5">还有 {otherAttacks.length - 2} 段...</p>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div className="space-y-2">
           {attacks.map((atk, i) => (

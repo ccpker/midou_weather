@@ -22,7 +22,8 @@ export default function SourcesPage() {
   const snapshots = useWeatherStore((s) => s.snapshots);
   const sourceStats = useWeatherStore((s) => s.sourceStats);
   const feedbacks = useWeatherStore((s) => s.feedbacks);
-  const current = useWeatherStore((s) => s.current);
+  const activeTab = useWeatherStore((s) => s.activeTab);
+  const current = useWeatherStore((s) => s[activeTab].current);
   const location = useWeatherStore((s) => s.location);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -361,7 +362,7 @@ function MiniMetric({ icon, label, value, sub }: { icon: React.ReactNode; label:
 
 // ═══ 一致性评估 ═══
 
-function ConsensusGlow({ current, sources }: { current: NonNullable<ReturnType<typeof useWeatherStore.getState>["current"]>; sources: Record<SourceId, SourceState> }) {
+function ConsensusGlow({ current, sources }: { current: NonNullable<ReturnType<typeof useWeatherStore.getState>["caiyun"]["current"]>; sources: Record<SourceId, SourceState> }) {
   const breakdown = current.sourceBreakdown;
   if (!breakdown) return null;
 

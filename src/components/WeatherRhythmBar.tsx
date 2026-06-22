@@ -11,7 +11,6 @@
  */
 
 import { useMemo } from "react";
-import { useWeatherStore } from "@/lib/store";
 import { useRhythmConfig } from "@/lib/useRhythmConfig";
 import { classifyCondition, weatherClassLabel, type WeatherClass } from "@/lib/icons";
 import { WeatherIcon } from "@/components/WeatherIcon";
@@ -82,8 +81,7 @@ interface Segment {
   isTurning: boolean;
 }
 
-export default function WeatherRhythmBar() {
-  const hourly = useWeatherStore((s) => s.hourly);
+export default function WeatherRhythmBar({ hourly }: { hourly: import("@/types/weather").HourlyForecast[] }) {
   const { config, todayTemplate, dayLabel, toggleOverride, hasOverride } = useRhythmConfig();
   const template = config.templates[todayTemplate];
 

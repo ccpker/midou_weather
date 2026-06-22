@@ -1,6 +1,19 @@
 // ─── 数据源 ───
 export type SourceId = "qweather" | "openmeteo" | "amap" | "caiyun" | "cma";
 
+/** 可选作主展示页的数据源 */
+export type PrimarySourceId = "caiyun" | "qweather";
+
+/** 单个主源的全部天气数据 */
+export interface SourceWeatherData {
+  current: CurrentWeather | null;
+  hourly: HourlyForecast[];
+  daily: DailyForecast[];
+  rainDetail: RainDetail[];
+  loading: boolean;
+  error: string | null;
+}
+
 /** 空间精度级别 */
 export type SpatialPrecision = "point" | "district" | "city";
 
@@ -156,10 +169,12 @@ export interface AppState {
   page: PageId;
   location: GeoLocation | null;
   cities: CityInfo[];
-  current: CurrentWeather | null;
-  hourly: HourlyForecast[];
-  daily: DailyForecast[];
-  rainDetail: RainDetail[];
+  /** 当前选中的主源 tab */
+  activeTab: PrimarySourceId;
+  /** 彩云天气全部数据 */
+  caiyun: SourceWeatherData;
+  /** 和风天气全部数据 */
+  qweather: SourceWeatherData;
   sources: Record<SourceId, SourceState>;
   /** 各源最近N条读数快照 (用于趋势/统计) */
   snapshots: Record<SourceId, SourceSnapshot[]>;
@@ -167,6 +182,7 @@ export interface AppState {
   sourceStats: Record<SourceId, SourceStats>;
   feedbacks: RainFeedback[];
   config: RemoteConfig | null;
+  /** 全局加载状态（定位阶段） */
   loading: boolean;
   error: string | null;
 }

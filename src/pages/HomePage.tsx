@@ -7,14 +7,22 @@ import { useMemo, type ReactNode } from "react";
 import WeatherAttackTimeline from "@/components/WeatherAttackTimeline";
 import WeatherRhythmBar from "@/components/WeatherRhythmBar";
 import MinuteRainChart from "@/components/MinuteRainChart";
-import type { SourceState, SpatialPrecision } from "@/types/weather";
+import type { SourceState, SpatialPrecision, PrimarySourceId, HourlyForecast } from "@/types/weather";
+
+const TAB_LABELS: Record<PrimarySourceId, string> = { caiyun: "彩云天气", qweather: "和风天气" };
 
 export default function HomePage() {
   const location = useWeatherStore((s) => s.location);
-  const current = useWeatherStore((s) => s.current);
-  const hourly = useWeatherStore((s) => s.hourly);
-  const daily = useWeatherStore((s) => s.daily);
-  const { loading, error, refresh } = useWeather();
+  const activeTab = useWeatherStore((s) => s.activeTab);
+  const caiyun = useWeatherStore((s) => s.caiyun);
+  const qweather = useWeatherStore((s) => s.qweather);
+  const { loading, error, refresh, switchTab } = useWeather();
+
+  const data = activeTab === "caiyun" ? caiyun : qweather;
+  const otherData = activeTab === "caiyun" ? qweather : caiyun;
+  const current = data.current;
+  const hourly = data.hourly;
+  const daily = data.daily;
 
   const weatherClass = useMemo(
     () => (current?.condition ? classifyCondition(current.condition) : null),
@@ -22,8 +30,11 @@ export default function HomePage() {
   );
 
   return (
-    <div className="px-5 pt-2 pb-6 space-y-4">
+    <div className="px-5 pt-2 pb-6 space-y-3">
       <LocationBar location={location} loading={loading} onRefresh={refresh} />
+
+      {/* 双页 Tab */}
+      <SourceTabs active={activeTab} onChange={switchTab} />
 
       {loading && <LoadingState />}
       {error && !loading && <ErrorState message={error} onRetry={() => refresh()} />}
@@ -33,12 +44,59 @@ export default function HomePage() {
         <>
           <SourcePrecisionCards />
           <HeroSection current={current} weatherClass={weatherClass} location={location} />
-          <MinuteRainChart />
-          {hourly.length > 0 && <WeatherAttackTimeline />}
-          {hourly.length > 0 && <WeatherRhythmBar />}
+          {data.rainDetail.length > 0 && <MinuteRainChart data={data.rainDetail} />}
+          {hourly.length > 0 && (
+            <WeatherAttackTimeline
+              hourly={hourly}
+              rainDetail={data.rainDetail}
+              otherHourly={otherData.hourly}
+            />
+          )}
+          {hourly.length > 0 && <WeatherRhythmBar hourly={hourly} />}
           {daily.length > 0 && <DailyCards daily={daily} weatherClass={weatherClass} />}
         </>
       )}
+    </div>
+  );
+}
+
+// ═══ 双页 Tab ═══
+
+function SourceTabs({
+  active,
+  onChange,
+}: {
+  active: PrimarySourceId;
+  onChange: (id: PrimarySourceId) => void;
+}) {
+  const sources = useWeatherStore((s) => s.sources);
+  const tabs: { id: PrimarySourceId; label: string; alive: boolean }[] = [
+    { id: "caiyun", label: "彩云天气", alive: sources.caiyun?.lastError === null },
+    { id: "qweather", label: "和风天气", alive: sources.qweather?.lastError === null },
+  ];
+
+  return (
+    <div className="animate-fade-in-up delay-100">
+      <div className="glass-day rounded-xl px-1.5 py-1.5 flex gap-0.5">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
+              active === t.id
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              {t.label}
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                t.alive ? "bg-emerald-400" : "bg-red-400"
+              }`} />
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -155,7 +213,7 @@ function HeroSection({
   weatherClass,
   location,
 }: {
-  current: NonNullable<ReturnType<typeof useWeatherStore.getState>["current"]>;
+  current: NonNullable<ReturnType<typeof useWeatherStore.getState>["caiyun"]["current"]>;
   weatherClass: ReturnType<typeof classifyCondition> | null;
   location: ReturnType<typeof useWeatherStore.getState>["location"];
 }) {
@@ -216,13 +274,13 @@ function StatLine({ icon, label, value }: { icon: ReactNode; label: string; valu
   );
 }
 
-// ═══ 每日预报 — 白色列表 + 温度条 ═══
+// ═══ 每日预报 ═══
 
 function DailyCards({
   daily,
   weatherClass,
 }: {
-  daily: ReturnType<typeof useWeatherStore.getState>["daily"];
+  daily: ReturnType<typeof useWeatherStore.getState>["caiyun"]["daily"];
   weatherClass: ReturnType<typeof classifyCondition> | null;
 }) {
   const temps = daily.flatMap((d) => [d.tempLow, d.tempHigh]);
@@ -293,7 +351,7 @@ function sourceAreaLabel(s: SourceState, addr: string, district: string, city: s
 function SourcePrecisionCards() {
   const sources = useWeatherStore((s) => s.sources);
   const location = useWeatherStore((s) => s.location);
-  const sourceBreakdown = useWeatherStore((s) => s.current?.sourceBreakdown);
+  const sourceBreakdown = useWeatherStore((s) => s.caiyun.current?.sourceBreakdown ?? s.qweather.current?.sourceBreakdown);
   const entries = Object.values(sources).filter(s => s.enabled);
 
   if (entries.length === 0 || !location) return null;
@@ -322,7 +380,6 @@ function SourcePrecisionCards() {
         <div className="grid grid-cols-2 gap-1.5">
           {entries.map((s) => {
             const area = sourceAreaLabel(s, address, district, city);
-            const bd = sourceBreakdown?.[s.id];
             return (
               <div
                 key={s.id}
@@ -343,11 +400,6 @@ function SourcePrecisionCards() {
                     {area}
                   </span>
                 </div>
-                {bd && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {bd.temp}° · {bd.condition}
-                  </p>
-                )}
               </div>
             );
           })}

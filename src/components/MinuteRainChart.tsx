@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useWeatherStore } from "@/lib/store";
 import type { RainDetail } from "@/types/weather";
 
 const BUCKET_MINUTES = 5;
@@ -44,12 +43,11 @@ function hasRain(buckets: ReturnType<typeof bucketRain>): boolean {
   return buckets.some((b) => b.maxIntensity > 0.05);
 }
 
-export default function MinuteRainChart() {
-  const rainDetail = useWeatherStore((s) => s.rainDetail);
-  const buckets = useMemo(() => bucketRain(rainDetail), [rainDetail]);
+export default function MinuteRainChart({ data }: { data: RainDetail[] }) {
+  const buckets = useMemo(() => bucketRain(data), [data]);
   const anyRain = useMemo(() => hasRain(buckets), [buckets]);
 
-  if (!rainDetail.length) return null;
+  if (!data.length) return null;
 
   // find max intensity for scale
   const maxVal = Math.max(0.1, ...buckets.map((b) => b.maxIntensity));

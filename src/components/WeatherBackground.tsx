@@ -4,7 +4,8 @@ import { classifyCondition, type WeatherClass } from "@/lib/icons";
 
 /** 动态天气天空背景 — 浅色版 */
 export function WeatherBackground() {
-  const current = useWeatherStore((s) => s.current);
+  const activeTab = useWeatherStore((s) => s.activeTab);
+  const current = useWeatherStore((s) => s[activeTab].current);
 
   const weatherClass: WeatherClass | null = useMemo(() => {
     if (!current?.condition) return null;
