@@ -84,6 +84,7 @@ function blockIcon(wc: WeatherClass): "thunder" | "snow" | null {
 
 export default function WeatherAttackTimeline() {
   const hourly = useWeatherStore((s) => s.hourly);
+  const rainDetail = useWeatherStore((s) => s.rainDetail);
 
   const attacks: AttackRow[] = useMemo(() => {
     if (hourly.length === 0) return [];
@@ -157,7 +158,7 @@ export default function WeatherAttackTimeline() {
       ) : (
         <div className="space-y-2">
           {attacks.map((atk, i) => (
-            <AttackRowDisplay key={i} atk={atk} />
+            <AttackRowDisplay key={i} atk={atk} rainDetail={rainDetail} />
           ))}
         </div>
       )}
@@ -165,15 +166,47 @@ export default function WeatherAttackTimeline() {
   );
 }
 
-// ═══ 单行 ═══
+// ═══ 工具 ───
+
+type RainEntry = { time: string; intensity: number };
+
+/** 从 rainDetail 找出指定小时范围内的首/末降水精确分钟 */
+function preciseBounds(
+  startH: number,
+  endH: number,
+  rain: RainEntry[],
+): { startStr: string; endStr: string } | null {
+  if (rain.length === 0) return null;
+  const now = new Date();
+  const startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + startH, 0, 0).getTime();
+  const endTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + endH + 1, 0, 0).getTime();
+  let firstMin = -1;
+  let lastMin = -1;
+  for (const r of rain) {
+    const t = new Date(r.time).getTime();
+    if (r.intensity > 0 && t >= startTs && t < endTs) {
+      const mins = new Date(r.time).getMinutes();
+      const h = new Date(r.time).getHours();
+      const totalMin = h * 60 + mins;
+      if (firstMin === -1 || totalMin < firstMin) firstMin = totalMin;
+      if (lastMin === -1 || totalMin > lastMin) lastMin = totalMin;
+    }
+  }
+  if (firstMin === -1) return null;
+  return {
+    startStr: `${String(Math.floor(firstMin / 60)).padStart(2, "0")}:${String(firstMin % 60).padStart(2, "0")}`,
+    endStr: `${String(Math.floor(lastMin / 60)).padStart(2, "0")}:${String(lastMin % 60).padStart(2, "0")}`,
+  };
+}
 
 function fmtHour(offsetH: number): string {
   return `${String((new Date().getHours() + offsetH) % 24).padStart(2, "0")}`;
 }
 
-function AttackRowDisplay({ atk }: { atk: AttackRow }) {
-  const rangeS = fmtHour(atk.startHour);
-  const rangeE = fmtHour(atk.endHour + 1);
+function AttackRowDisplay({ atk, rainDetail }: { atk: AttackRow; rainDetail: RainEntry[] }) {
+  const bounds = preciseBounds(atk.startHour, atk.endHour, rainDetail);
+  const rangeS = bounds?.startStr ?? `${fmtHour(atk.startHour)}:00`;
+  const rangeE = bounds?.endStr ?? `${fmtHour(atk.endHour + 1)}:00`;
   const attackBlocks = atk.blocks.filter((b) => b.weatherClass !== "sunny");
   const totalH = atk.blocks.length;
   const maxPop = attackBlocks.length > 0 ? Math.max(...attackBlocks.map((b) => b.pop)) : 0;
@@ -189,7 +222,7 @@ function AttackRowDisplay({ atk }: { atk: AttackRow }) {
               atk.dayLabel === "今天" ? "text-amber-600" :
               atk.dayLabel === "明天" ? "text-blue-600" : "text-gray-500"
             }`}>{atk.dayLabel}</span>
-            <span className="text-[10px] text-gray-500 font-mono">{rangeS}:00~{rangeE}:00</span>
+            <span className="text-[10px] text-gray-500 font-mono">{rangeS}~{rangeE}</span>
           </>
         )}
         {atk.ongoing ? (
