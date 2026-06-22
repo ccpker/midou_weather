@@ -105,7 +105,7 @@ export default function SettingsPage() {
       {/* ═══ 关于 ═══ */}
       <div className="animate-fade-in-up delay-300">
         <div className="glass rounded-2xl p-4 space-y-0.5">
-          <SettingRow icon={<Info className="w-4 h-4" />} label="版本" value="米豆天气 v4.2.0" />
+          <SettingRow icon={<Info className="w-4 h-4" />} label="版本" value="米豆天气 v4.3.0" />
           <SettingRow icon={<Activity className="w-4 h-4" />} label="引擎" value="6源加权融合 + 水位学习" />
           <SettingRow icon={<ShieldAlert className="w-4 h-4" />} label="免责" value="仅作参考，以气象台为准" last />
         </div>
